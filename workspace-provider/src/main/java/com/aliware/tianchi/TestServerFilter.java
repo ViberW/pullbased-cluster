@@ -2,13 +2,9 @@ package com.aliware.tianchi;
 
 import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
-import org.apache.dubbo.rpc.BaseFilter;
-import org.apache.dubbo.rpc.Filter;
-import org.apache.dubbo.rpc.Invocation;
-import org.apache.dubbo.rpc.Invoker;
-import org.apache.dubbo.rpc.Result;
-import org.apache.dubbo.rpc.RpcException;
+import org.apache.dubbo.rpc.*;
 
+import org.apache.dubbo.rpc.support.RpcUtils;
 import oshi.SystemInfo;
 import oshi.hardware.GlobalMemory;
 import oshi.hardware.HardwareAbstractionLayer;
@@ -21,11 +17,13 @@ import oshi.hardware.HardwareAbstractionLayer;
  */
 @Activate(group = CommonConstants.PROVIDER)
 public class TestServerFilter implements Filter, BaseFilter.Listener {
+    private static final String SERVER_MONITOR_START = "server_monitor_start";
+
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        invocation.put(SERVER_MONITOR_START, System.currentTimeMillis());
         try {
-            Result result = invoker.invoke(invocation);
-            return result;
+            return invoker.invoke(invocation);
         } catch (Exception e) {
             throw e;
         }
@@ -33,16 +31,13 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
-        // 获取内存信息样例
-        SystemInfo si = new SystemInfo();
-        HardwareAbstractionLayer hal = si.getHardware();
-        GlobalMemory memory = hal.getMemory();
-
-        appResponse.setAttachment("TestKey", String.valueOf(memory.getVirtualMemory().getVirtualMax()));
+        // 获取内存信息样例 --这些信息仅仅在访问时间较长时触发计算, 没必要每次都计算
+        appResponse.setAttachment("server_timeout",
+                (long) invocation.get(SERVER_MONITOR_START) - System.currentTimeMillis());
+        appResponse.setAttachment("weight", ProviderManager.calculateWeight());
     }
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
-
     }
 }

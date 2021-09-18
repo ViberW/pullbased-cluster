@@ -2,12 +2,12 @@ package com.aliware.tianchi;
 
 import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
-import org.apache.dubbo.rpc.BaseFilter;
-import org.apache.dubbo.rpc.Filter;
-import org.apache.dubbo.rpc.Invocation;
-import org.apache.dubbo.rpc.Invoker;
-import org.apache.dubbo.rpc.Result;
-import org.apache.dubbo.rpc.RpcException;
+import org.apache.dubbo.remoting.RemotingException;
+import org.apache.dubbo.remoting.TimeoutException;
+import org.apache.dubbo.rpc.*;
+
+import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
+import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
 
 /**
  * 客户端过滤器（选址后）
@@ -17,21 +17,48 @@ import org.apache.dubbo.rpc.RpcException;
  */
 @Activate(group = CommonConstants.CONSUMER)
 public class TestClientFilter implements Filter, BaseFilter.Listener {
+
+
+    private static final String CLIENT_MONITOR_START = "client_monitor_start";
+
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        try {
-            Result result = invoker.invoke(invocation);
-            return result;
-        } catch (Exception e) {
-            throw e;
+        //已经明确发往一个provider, 此时的拦截
+        NodeState state = NodeManager.state(invoker);
+        state.active.incrementAndGet();
+        invocation.put(CLIENT_MONITOR_START, System.currentTimeMillis());
+        Result result = invoker.invoke(invocation);
+        if (result instanceof AsyncRpcResult) {
+            AsyncRpcResult asyncRpcResult = (AsyncRpcResult) result;
+            asyncRpcResult.getResponseFuture().whenComplete((appResponse, throwable) -> {
+                if (throwable != null) {
+                    if (throwable instanceof TimeoutException) {
+                        int timeout = invoker.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
+                        state.addTimeout(timeout, timeout);
+                    } else {
+                        state.setWeight(NodeState.DEFAULT_WEIGHT);
+                    }
+                }
+            });
         }
-
+        return result;
     }
 
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
-        String value = appResponse.getAttachment("TestKey");
-        System.out.println("TestKey From Filter, value: " + value);
+        NodeState state = NodeManager.state(invoker);
+        state.active.decrementAndGet();
+        String value = appResponse.getAttachment("weight");
+        if (null != value) {
+            state.setWeight(Long.parseLong(value));
+        }
+        long clientTimeout = System.currentTimeMillis() - (long) invocation.get(CLIENT_MONITOR_START);
+        value = appResponse.getAttachment("server_timeout");
+        if (null != value) {
+            state.addTimeout(Long.parseLong(value), clientTimeout);
+        } else {
+            state.addTimeout(clientTimeout, clientTimeout);
+        }
     }
 
     @Override

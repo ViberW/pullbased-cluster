@@ -2,11 +2,7 @@ package com.aliware.tianchi;
 
 import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
-import org.apache.dubbo.rpc.BaseFilter;
-import org.apache.dubbo.rpc.Invocation;
-import org.apache.dubbo.rpc.Invoker;
-import org.apache.dubbo.rpc.Result;
-import org.apache.dubbo.rpc.RpcException;
+import org.apache.dubbo.rpc.*;
 import org.apache.dubbo.rpc.cluster.filter.ClusterFilter;
 
 /**
@@ -20,18 +16,16 @@ public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listen
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         try {
+            //添加标签属性, 要求添加标签, 若是存在当前的标签, 则从result中获取到响应的属性值, 这里决定是否添加某个invoker?
             Result result = invoker.invoke(invocation);
             return result;
         } catch (Exception e) {
             throw e;
         }
-
     }
 
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
-        String value = appResponse.getAttachment("TestKey");
-        System.out.println("TestKey From ClusterFilter, value: " + value);
     }
 
     @Override
