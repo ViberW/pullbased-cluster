@@ -14,7 +14,6 @@ import java.util.concurrent.atomic.LongAdder;
 public class NodeState {
 
     public static final long DEFAULT_WEIGHT = 10;
-    private static final double baseActive = 1000.0;
 
     public AtomicInteger active = new AtomicInteger(0);
     public AtomicLong weight = new AtomicLong(DEFAULT_WEIGHT);
@@ -28,7 +27,7 @@ public class NodeState {
 
     //weight *(500/repTime) * (1000.0/(active+1000.0))*timeoutRatio
     public long getWeight() {
-        return (long) Math.max(DEFAULT_WEIGHT, weight.get() * (baseActive / (active.get() + baseActive)) * timeoutRatio);
+        return (long) Math.max(DEFAULT_WEIGHT, weight.get() * timeoutRatio / (active.get() < 0 ? 1 : active.get()));
     }
 
     public void setWeight(long w) {
