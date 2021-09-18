@@ -35,7 +35,7 @@ public class UserLoadBalance implements LoadBalance {
             totalWeight += weight;
         }
         if (totalWeight <= 0) {
-            logger.warn("UserLoadBalance: " + Arrays.toString(serviceWeight) + "====" + totalWeight);
+            System.out.println("UserLoadBalance: " + Arrays.toString(serviceWeight) + "====" + totalWeight);
         }
         long expect = ThreadLocalRandom.current().nextLong(totalWeight <= 0 ? Long.MAX_VALUE : totalWeight);
         for (int i = 0, size = invokers.size(); i < size; ++i) {

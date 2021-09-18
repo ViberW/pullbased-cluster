@@ -26,10 +26,9 @@ public class ProviderManager {
             if (lastTime.compareAndSet(l, l + interval)) {
                 //memory*cpu*disk*net)
                 double ratio = calculateCPURatio();
-                long memory = calculateMemory();
+                double mRatio = calculateMemory();
                 double diskRatio = calculateDiskRatio();
-                double netRatio = calculateNetRatio();
-                weight = Math.max(1, (long) (memory * ratio * diskRatio * netRatio));
+                weight = Math.max(1, (long) (mRatio * ratio * diskRatio * 100));
                 return weight;
             }
         }
@@ -47,21 +46,14 @@ public class ProviderManager {
         return 1 + 0.1 * (size - write) / size;
     }
 
-    private static double calculateNetRatio() {
-        List<NetworkIF> networkIFs = hal.getNetworkIFs();
-        long total = 1;
-        for (NetworkIF networkIF : networkIFs) {
-            total += networkIF.getSpeed() / 1024;
-        }
-        return total * 1.0 / (1024 + total);
-    }
-
-    private static long calculateMemory() {
+    private static double calculateMemory() {
         GlobalMemory memory = hal.getMemory();
         long l = (memory.getVirtualMemory().getVirtualMax() - memory.getVirtualMemory().getVirtualInUse())
                 / (1024 * 1024);
+        //需要一个简单的处理方式 进行压缩
+        double ratio = l * 1.0 / memory.getVirtualMemory().getVirtualMax();
         //计算真实可用的内存
-        return l == 0 ? 1 : l;
+        return Math.max(0.01, ratio);
     }
 
     private static double calculateCPURatio() {
@@ -72,6 +64,6 @@ public class ProviderManager {
         for (CentralProcessor.TickType tickType : CentralProcessor.TickType.values()) {
             total += systemCpuLoadTicks[tickType.getIndex()];
         }
-        return total == 0 ? 0.01 : idel * 1.0 / total;
+        return total < 0 ? 0.01 : Math.max(0.01, idel * 1.0 / total);
     }
 }
