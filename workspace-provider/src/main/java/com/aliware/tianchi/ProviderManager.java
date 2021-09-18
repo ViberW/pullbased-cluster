@@ -58,7 +58,8 @@ public class ProviderManager {
 
     private static long calculateMemory() {
         GlobalMemory memory = hal.getMemory();
-        long l = memory.getVirtualMemory().getVirtualMax() - memory.getVirtualMemory().getVirtualInUse();
+        long l = (memory.getVirtualMemory().getVirtualMax() - memory.getVirtualMemory().getVirtualInUse())
+                / (1024 * 1024);
         //计算真实可用的内存
         return l == 0 ? 1 : l;
     }

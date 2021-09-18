@@ -14,7 +14,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -26,7 +25,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
     private final Timer checker;
-    private static final long[] TIME_INTERVAL = {40L, 80L, 160L, 500L};
 
     public UserClusterInvoker(Directory<T> directory) {
         super(directory);
@@ -50,7 +48,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     reputCompletableFuture.complete(responseFuture.getNow(new AppResponse()));
                 } else {
                     checker.newTimeout(new FutureTimeoutTask(loadbalance, invocation, asyncRpcResult, invoker, invokers),
-                            TIME_INTERVAL[0], TimeUnit.MILLISECONDS);
+                            50, TimeUnit.MILLISECONDS);
                 }
             }
         }
@@ -67,10 +65,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
         Invoker<T> invoker;
         List<Invoker<T>> invokers;
-        int retries;
         AsyncRpcResult asyncRpcResult;
-        int index = 0;
-
         LoadBalance loadbalance;
         Invocation invocation;
 
@@ -80,7 +75,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             this.invokers = invokers;
             this.loadbalance = loadbalance;
             this.invocation = invocation;
-            this.retries = invokers.size();
         }
 
         @Override
@@ -91,16 +85,10 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             }
             responseFuture.cancel(true);
             NodeState state = NodeManager.state(invoker);
-            long to = TIME_INTERVAL[index];
-            state.addTimeout(to, to);
-            if (retries-- > 0) {
-                index = index + 1 < TIME_INTERVAL.length ? index + 1 : index;
-                invoker = select(loadbalance, invocation, invokers, Collections.singletonList(invoker));
-                invokeWithContext(invoker, invocation);
-                rePut(timeout);
-            } else {
-                responseFuture.complete(new AppResponse(new TimeoutException("long timer to get msg")));
-            }
+            state.addTimeout(50, 50);
+            invoker = select(loadbalance, invocation, invokers, Collections.singletonList(invoker));
+            invokeWithContext(invoker, invocation);
+            rePut(timeout);
         }
 
         private void rePut(Timeout timeout) {
@@ -111,7 +99,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             if (timer.isStop() || timeout.isCancelled()) {
                 return;
             }
-            timer.newTimeout(timeout.task(), 5, TimeUnit.MILLISECONDS);
+            timer.newTimeout(timeout.task(), 50, TimeUnit.MILLISECONDS);
         }
     }
 

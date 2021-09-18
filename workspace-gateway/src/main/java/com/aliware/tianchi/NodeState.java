@@ -51,9 +51,8 @@ public class NodeState {
                 if (count.get() == 0) {
                     return;
                 }
-                double ratio = (500.0 * count.get() / serverAdder.longValue()) * 0.6
-                        + (500.0 * count.get() / clientAdder.longValue());
-                timeoutRatio = ratio;
+                timeoutRatio = (50.0 * count.get() / serverAdder.longValue()) * 0.6
+                        + (50.0 * count.get() / clientAdder.longValue());
                 serverAdder.reset();
                 clientAdder.reset();
                 count.set(0);
