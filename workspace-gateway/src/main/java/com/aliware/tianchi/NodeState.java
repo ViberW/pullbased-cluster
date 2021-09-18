@@ -13,22 +13,20 @@ import java.util.concurrent.atomic.LongAdder;
  */
 public class NodeState {
 
-    public static final long DEFAULT_WEIGHT = 10;
-    private static final double baseActive = 1000.0;
+    public static final long DEFAULT_WEIGHT = 1;
 
     public AtomicInteger active = new AtomicInteger(0);
     public AtomicLong weight = new AtomicLong(DEFAULT_WEIGHT);
     private volatile double timeoutRatio = 1;
 
-    public LongAdder serverAdder = new LongAdder();
-    public LongAdder clientAdder = new LongAdder();
+    public LongAdder timeoutAddr = new LongAdder();
     public AtomicLong count = new AtomicLong(0);
     private static AtomicLong lastTime = new AtomicLong(System.currentTimeMillis());
     private static long interval = TimeUnit.SECONDS.toMillis(3);
 
     //weight *(500/repTime) * (1000.0/(active+1000.0))*timeoutRatio
     public long getWeight() {
-        return (long) Math.max(DEFAULT_WEIGHT, 1 + weight.get() * (baseActive / (active.get() + baseActive)) * timeoutRatio);
+        return (long) Math.max(DEFAULT_WEIGHT, (100.0 / active.get()) * weight.get() * timeoutRatio);
     }
 
     public void setWeight(long w) {
@@ -37,10 +35,9 @@ public class NodeState {
         }
     }
 
-    public void addTimeout(long serverTimeout, long clientTimeout) {
+    public void addTimeout(long timeout) {
         count.getAndIncrement();
-        serverAdder.add(serverTimeout);
-        clientAdder.add(clientTimeout);
+        timeoutAddr.add(timeout);
         resetTimeout();
     }
 
@@ -51,10 +48,9 @@ public class NodeState {
                 if (count.get() == 0) {
                     return;
                 }
-                timeoutRatio = (50.0 * count.get() / serverAdder.longValue()) * 0.6
-                        + (50.0 * count.get() / clientAdder.longValue());
-                serverAdder.reset();
-                clientAdder.reset();
+                long l1 = timeoutAddr.longValue();
+                timeoutRatio = (50.0 * count.get() / (l1 == 0 ? 1 : l1));
+                timeoutAddr.reset();
                 count.set(0);
             }
         }

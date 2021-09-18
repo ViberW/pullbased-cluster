@@ -1,17 +1,13 @@
 package com.aliware.tianchi;
 
-import com.sun.org.slf4j.internal.Logger;
-import com.sun.org.slf4j.internal.LoggerFactory;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.rpc.Invocation;
 import org.apache.dubbo.rpc.Invoker;
 import org.apache.dubbo.rpc.RpcException;
 import org.apache.dubbo.rpc.cluster.LoadBalance;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 负载均衡扩展接口
@@ -33,10 +29,7 @@ public class UserLoadBalance implements LoadBalance {
             serviceWeight[index] = weight;
             totalWeight += weight;
         }
-        if (totalWeight <= 0) {
-            System.out.println("UserLoadBalance: " + Arrays.toString(serviceWeight) + "====" + totalWeight);
-        }
-        long expect = ThreadLocalRandom.current().nextLong(totalWeight <= 0 ? Long.MAX_VALUE : totalWeight);
+        long expect = ThreadLocalRandom.current().nextLong(totalWeight);
         for (int i = 0, size = invokers.size(); i < size; ++i) {
             expect -= serviceWeight[i];
             if (expect < 0) {

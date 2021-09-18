@@ -34,7 +34,7 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
                 if (throwable != null) {
                     if (throwable instanceof TimeoutException) {
                         int timeout = invoker.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
-                        state.addTimeout(timeout, timeout);
+                        state.addTimeout(timeout);
                     } else {
                         state.setWeight(NodeState.DEFAULT_WEIGHT);
                     }
@@ -52,13 +52,7 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         if (null != value) {
             state.setWeight(Long.parseLong(value));
         }
-        long clientTimeout = System.currentTimeMillis() - (long) invocation.get(CLIENT_MONITOR_START);
-        value = appResponse.getAttachment("server_timeout");
-        if (null != value) {
-            state.addTimeout(Long.parseLong(value), clientTimeout);
-        } else {
-            state.addTimeout(clientTimeout, clientTimeout);
-        }
+        state.addTimeout(System.currentTimeMillis() - (long) invocation.get(CLIENT_MONITOR_START));
     }
 
     @Override

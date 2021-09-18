@@ -18,42 +18,30 @@ public class ProviderManager {
     private static long interval = TimeUnit.SECONDS.toMillis(3);
     private static SystemInfo si = new SystemInfo();
     private static HardwareAbstractionLayer hal = si.getHardware();
-    private static volatile long weight = 1;
+    private static volatile double weight = 1.0;
 
-    public static long calculateWeight() {
+    public static double calculateWeight() {
         long l = lastTime.get();
         if (System.currentTimeMillis() >= l) {
             if (lastTime.compareAndSet(l, l + interval)) {
                 //memory*cpu*disk*net)
                 double ratio = calculateCPURatio();
                 double mRatio = calculateMemory();
-                double diskRatio = calculateDiskRatio();
-                weight = Math.max(1, (long) (mRatio * ratio * diskRatio * 100));
+                weight = Math.max(1.0, mRatio * ratio * 1000);
                 return weight;
             }
         }
         return weight;
     }
 
-    private static double calculateDiskRatio() {
-        List<HWDiskStore> diskStores = hal.getDiskStores();
-        long write = 0;
-        long size = 0;
-        for (HWDiskStore diskStore : diskStores) {
-            write += diskStore.getWrites();
-            size += diskStore.getSize();
-        }
-        return 1 + 0.1 * (size - write) / size;
-    }
-
     private static double calculateMemory() {
         GlobalMemory memory = hal.getMemory();
         long l = (memory.getVirtualMemory().getVirtualMax() - memory.getVirtualMemory().getVirtualInUse())
-                / (1024 * 1024);
+                / (1024 * 1024);//MB
         //需要一个简单的处理方式 进行压缩
         double ratio = l * 1.0 / memory.getVirtualMemory().getVirtualMax();
         //计算真实可用的内存
-        return Math.max(0.01, ratio);
+        return Math.max(1, ratio * l);
     }
 
     private static double calculateCPURatio() {

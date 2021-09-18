@@ -16,6 +16,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
+import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
+
 /**
  * 集群实现
  * 必选接口，核心接口
@@ -25,12 +28,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
     private final Timer checker;
+    private static final long delay = 50;
+    private static AppResponse EMPTY = new AppResponse();
 
     public UserClusterInvoker(Directory<T> directory) {
         super(directory);
         checker = new HashedWheelTimer(
                 new NamedThreadFactory("user-cluster-check-timer", true),
-                20, TimeUnit.MILLISECONDS, 25);
+                25, TimeUnit.MILLISECONDS, 40);
     }
 
     @Override
@@ -42,13 +47,13 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             AsyncRpcResult asyncRpcResult = (AsyncRpcResult) result;
             CompletableFuture<AppResponse> responseFuture = asyncRpcResult.getResponseFuture();
             if (!responseFuture.isDone()) {
-                CompletableFuture<AppResponse> reputCompletableFuture = new OnceCompletableFuture<>(responseFuture);
+                CompletableFuture<AppResponse> reputCompletableFuture = new OnceCompletableFuture(responseFuture);
                 asyncRpcResult.setResponseFuture(reputCompletableFuture);
                 if (responseFuture.isDone()) {
-                    reputCompletableFuture.complete(responseFuture.getNow(new AppResponse()));
+                    reputCompletableFuture.complete(responseFuture.getNow(EMPTY));
                 } else {
                     checker.newTimeout(new FutureTimeoutTask(loadbalance, invocation, asyncRpcResult, invoker, invokers),
-                            50, TimeUnit.MILLISECONDS);
+                            delay, TimeUnit.MILLISECONDS);
                 }
             }
         }
@@ -62,19 +67,21 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     }
 
     class FutureTimeoutTask implements TimerTask {
-
         Invoker<T> invoker;
         List<Invoker<T>> invokers;
         AsyncRpcResult asyncRpcResult;
         LoadBalance loadbalance;
         Invocation invocation;
+        final long time;
 
-        public FutureTimeoutTask(LoadBalance loadbalance, Invocation invocation, AsyncRpcResult asyncRpcResult, Invoker<T> invoker, List<Invoker<T>> invokers) {
+        public FutureTimeoutTask(LoadBalance loadbalance, Invocation invocation, AsyncRpcResult asyncRpcResult,
+                                 Invoker<T> invoker, List<Invoker<T>> invokers) {
             this.asyncRpcResult = asyncRpcResult;
             this.invoker = invoker;
             this.invokers = invokers;
             this.loadbalance = loadbalance;
             this.invocation = invocation;
+            time = invoker.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
         }
 
         @Override
@@ -83,40 +90,52 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             if (responseFuture == null || responseFuture.isDone()) {
                 return;
             }
-            responseFuture.cancel(true);
             NodeState state = NodeManager.state(invoker);
-            state.addTimeout(100, 100);
+            state.addTimeout(time);
             invoker = select(loadbalance, invocation, invokers, Collections.singletonList(invoker));
-            invokeWithContext(invoker, invocation);
-            rePut(timeout);
-        }
-
-        private void rePut(Timeout timeout) {
-            if (timeout == null) {
-                return;
+            Result result = invoker.invoke(invocation);
+            //同样将结果放置到这里
+            OnceCompletableFuture oncefuture = (OnceCompletableFuture) responseFuture;
+            if (oncefuture.replace(((AsyncRpcResult) result).getResponseFuture())) {
+                timeout.timer().newTimeout(timeout.task(), delay, TimeUnit.MILLISECONDS);
             }
-            Timer timer = timeout.timer();
-            if (timer.isStop() || timeout.isCancelled()) {
-                return;
-            }
-            timer.newTimeout(timeout.task(), 50, TimeUnit.MILLISECONDS);
         }
     }
 
-    static class OnceCompletableFuture<T> extends CompletableFuture<T> {
+    static class OnceCompletableFuture extends CompletableFuture<AppResponse> {
         AtomicBoolean once = new AtomicBoolean(false);
-        final CompletableFuture<T> responseFuture;
+        CompletableFuture<AppResponse> responseFuture;
 
-        public OnceCompletableFuture(CompletableFuture<T> responseFuture) {
+        public OnceCompletableFuture(CompletableFuture<AppResponse> responseFuture) {
             this.responseFuture = responseFuture;
-            CompletableFuture<T> reputCompletableFuture = new CompletableFuture<>();
-            reputCompletableFuture.whenComplete((appResponse, throwable) -> {
-                if (!reputCompletableFuture.isCancelled()) {
-                    if (once.compareAndSet(false, true)) {
+            this.whenComplete((appResponse, throwable) -> {
+                if (once.compareAndSet(false, true)) {
+                    if (!responseFuture.isDone()) {
                         responseFuture.complete(appResponse);
                     }
                 }
             });
+            if (responseFuture.isDone()) {
+                this.complete(responseFuture.getNow(EMPTY));
+            }
+        }
+
+        public boolean replace(CompletableFuture<AppResponse> responseFuture) {
+            if (this.responseFuture != null) {
+                if (!responseFuture.cancel(true)) {
+                    return false;
+                }
+            }
+            CompletableFuture<AppResponse> lastFuture = this.responseFuture;
+            this.responseFuture = responseFuture;
+            if (responseFuture.isDone()) {
+                this.complete(responseFuture.getNow(EMPTY));
+            } else if (lastFuture.isDone()) {
+                this.complete(lastFuture.getNow(EMPTY));
+            } else {
+                return true;
+            }
+            return false;
         }
     }
 }

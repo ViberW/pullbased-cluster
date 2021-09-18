@@ -17,11 +17,9 @@ import oshi.hardware.HardwareAbstractionLayer;
  */
 @Activate(group = CommonConstants.PROVIDER)
 public class TestServerFilter implements Filter, BaseFilter.Listener {
-    private static final String SERVER_MONITOR_START = "server_monitor_start";
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        invocation.put(SERVER_MONITOR_START, System.currentTimeMillis());
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {
@@ -32,8 +30,6 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         // 获取内存信息样例 --这些信息仅仅在访问时间较长时触发计算, 没必要每次都计算
-        appResponse.setAttachment("server_timeout",
-                (long) invocation.get(SERVER_MONITOR_START) - System.currentTimeMillis());
         appResponse.setAttachment("weight", ProviderManager.calculateWeight());
     }
 
