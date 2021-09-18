@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 选手需要基于此类实现自己的负载均衡算法
  */
 public class UserLoadBalance implements LoadBalance {
-    private static Logger logger = LoggerFactory.getLogger(UserLoadBalance.class);
 
     @Override
     public <T> Invoker<T> select(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {

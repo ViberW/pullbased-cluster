@@ -85,7 +85,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             }
             responseFuture.cancel(true);
             NodeState state = NodeManager.state(invoker);
-            state.addTimeout(50, 50);
+            state.addTimeout(100, 100);
             invoker = select(loadbalance, invocation, invokers, Collections.singletonList(invoker));
             invokeWithContext(invoker, invocation);
             rePut(timeout);
