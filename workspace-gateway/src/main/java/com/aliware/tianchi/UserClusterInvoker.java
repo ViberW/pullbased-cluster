@@ -113,19 +113,16 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             if(this.isDone()){
                 return false;
             }
-            if (this.responseFuture != null) {
-                if (!this.responseFuture.cancel(true)) {
-                    this.complete(this.responseFuture.getNow(EMPTY));
-                    responseFuture.cancel(true);
-                    return false;
-                }
-            }
             CompletableFuture<AppResponse> lastFuture = this.responseFuture;
             this.responseFuture = responseFuture;
-            if (responseFuture.isDone()) {
-                this.complete(responseFuture.getNow(EMPTY));
-            } else if (lastFuture.isDone()) {
+
+            if (!lastFuture.cancel(true)) {
                 this.complete(lastFuture.getNow(EMPTY));
+                this.responseFuture.cancel(true);
+                return false;
+            }
+            if (this.responseFuture.isDone()) {
+                this.complete(this.responseFuture.getNow(EMPTY));
             } else {
                 return true;
             }
