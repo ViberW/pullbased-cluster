@@ -24,7 +24,6 @@ public class ProviderManager {
         long l = lastTime.get();
         if (System.currentTimeMillis() >= l) {
             if (lastTime.compareAndSet(l, l + interval)) {
-                //memory*cpu*disk*net)
                 double ratio = calculateCPURatio();
                 double mRatio = calculateMemory();
                 weight = Math.max(10.0, mRatio * ratio * 1024);
@@ -38,7 +37,6 @@ public class ProviderManager {
         GlobalMemory memory = hal.getMemory();
         long l = (memory.getVirtualMemory().getVirtualMax() - memory.getVirtualMemory().getVirtualInUse())
                 / (1024 * 1024);//MB
-        //需要一个简单的处理方式 进行压缩
         double ratio = l * 1.0 / memory.getVirtualMemory().getVirtualMax();
         //计算真实可用的内存
         return Math.max(1, ratio * l);

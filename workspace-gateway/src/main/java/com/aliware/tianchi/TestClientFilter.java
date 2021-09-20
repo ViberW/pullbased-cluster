@@ -24,23 +24,8 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         //已经明确发往一个provider, 此时的拦截
-        NodeState state = NodeManager.state(invoker);
         invocation.put(CLIENT_MONITOR_START, System.currentTimeMillis());
-        Result result = invoker.invoke(invocation);
-        if (result instanceof AsyncRpcResult) {
-            AsyncRpcResult asyncRpcResult = (AsyncRpcResult) result;
-            asyncRpcResult.getResponseFuture().whenComplete((appResponse, throwable) -> {
-                if (throwable != null) {
-                    if (throwable instanceof TimeoutException) {
-                        int timeout = invoker.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
-                        state.addTimeout(timeout);
-                    } else {
-                        state.setWeight(NodeState.DEFAULT_WEIGHT);
-                    }
-                }
-            });
-        }
-        return result;
+        return invoker.invoke(invocation);
     }
 
     @Override
