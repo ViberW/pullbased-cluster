@@ -19,7 +19,7 @@ public class UserLoadBalance implements LoadBalance {
 
     @Override
     public <T> Invoker<T> select(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
-        long[] serviceWeight = new long[invokers.size()];
+        /*long[] serviceWeight = new long[invokers.size()];
         long totalWeight = 0;
         long weight;
         for (int index = 0, size = invokers.size(); index < size; ++index) {
@@ -35,7 +35,7 @@ public class UserLoadBalance implements LoadBalance {
             if (expect < 0) {
                 return invokers.get(i);
             }
-        }
+        }*/
         return invokers.get(ThreadLocalRandom.current().nextInt(invokers.size()));
     }
 }
