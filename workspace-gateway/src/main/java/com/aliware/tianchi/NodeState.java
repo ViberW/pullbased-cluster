@@ -52,7 +52,7 @@ public class NodeState {
                     if(tout == 0){
                         return;
                     }
-                    timeoutRatio = Math.max(0.3,  500.0 * count.get() / tout);
+                    timeoutRatio = Math.max(0.2,  500.0 * count.get() / tout);
                 }finally {
                     timeoutAddr.reset();
                     count.set(0);

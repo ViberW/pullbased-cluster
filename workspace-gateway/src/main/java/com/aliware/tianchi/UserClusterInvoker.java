@@ -42,7 +42,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     protected Result doInvoke(Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
         Invoker<T> invoker = this.select(loadbalance, invocation, invokers, null);
         Result result = invoker.invoke(invocation);
-        if (invokers.size() > 1 && result instanceof AsyncRpcResult) {
+        if (result instanceof AsyncRpcResult) {
             //这里去替换CompletableFuture
             AsyncRpcResult asyncRpcResult = (AsyncRpcResult) result;
             CompletableFuture<AppResponse> responseFuture = asyncRpcResult.getResponseFuture();
@@ -103,26 +103,20 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     }
 
     static class OnceCompletableFuture extends CompletableFuture<AppResponse> {
-        AtomicBoolean once = new AtomicBoolean(false);
         CompletableFuture<AppResponse> responseFuture;
 
         public OnceCompletableFuture(CompletableFuture<AppResponse> responseFuture) {
             this.responseFuture = responseFuture;
-            this.whenComplete((appResponse, throwable) -> {
-                if (once.compareAndSet(false, true)) {
-                    if (!responseFuture.isDone()) {
-                        responseFuture.complete(appResponse);
-                    }
-                }
-            });
-            if (responseFuture.isDone()) {
-                this.complete(responseFuture.getNow(EMPTY));
-            }
         }
 
         public boolean replace(CompletableFuture<AppResponse> responseFuture) {
+            if(this.isDone()){
+                return false;
+            }
             if (this.responseFuture != null) {
-                if (!responseFuture.cancel(true)) {
+                if (!this.responseFuture.cancel(true)) {
+                    this.complete(this.responseFuture.getNow(EMPTY));
+                    responseFuture.cancel(true);
                     return false;
                 }
             }
