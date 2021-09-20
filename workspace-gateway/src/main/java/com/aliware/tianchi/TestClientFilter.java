@@ -25,7 +25,6 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         //已经明确发往一个provider, 此时的拦截
         NodeState state = NodeManager.state(invoker);
-        state.active.incrementAndGet();
         invocation.put(CLIENT_MONITOR_START, System.currentTimeMillis());
         Result result = invoker.invoke(invocation);
         if (result instanceof AsyncRpcResult) {
@@ -47,7 +46,6 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         NodeState state = NodeManager.state(invoker);
-        state.active.decrementAndGet();
         String value = appResponse.getAttachment("weight");
         if (null != value) {
             state.setWeight(Long.parseLong(value));

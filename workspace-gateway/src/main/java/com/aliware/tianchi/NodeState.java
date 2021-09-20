@@ -15,7 +15,6 @@ public class NodeState {
 
     public static final long DEFAULT_WEIGHT = 1;
 
-    public AtomicInteger active = new AtomicInteger(0);
     public AtomicLong weight = new AtomicLong(DEFAULT_WEIGHT);
     private volatile double timeoutRatio = 1;
 
@@ -24,9 +23,9 @@ public class NodeState {
     private static AtomicLong lastTime = new AtomicLong(System.currentTimeMillis());
     private static long interval = TimeUnit.SECONDS.toMillis(3);
 
-    //weight *(500/repTime) * (1000.0/(active+1000.0))*timeoutRatio
+    //weight *(500/repTime) *timeoutRatio
     public long getWeight() {
-        return (long) Math.max(DEFAULT_WEIGHT, (100.0 / active.get()) * weight.get() * timeoutRatio);
+        return (long) Math.max(DEFAULT_WEIGHT, weight.get() * timeoutRatio);
     }
 
     public void setWeight(long w) {
@@ -45,13 +44,19 @@ public class NodeState {
         long l = lastTime.get();
         if (System.currentTimeMillis() >= l) {
             if (lastTime.compareAndSet(l, l + interval)) {
-                if (count.get() == 0) {
-                    return;
+                try {
+                    if (count.get() == 0) {
+                        return;
+                    }
+                    long tout = timeoutAddr.longValue();
+                    if(tout == 0){
+                        return;
+                    }
+                    timeoutRatio = Math.max(0.3,  500.0 * count.get() / tout);
+                }finally {
+                    timeoutAddr.reset();
+                    count.set(0);
                 }
-                long l1 = timeoutAddr.longValue();
-                timeoutRatio = (50.0 * count.get() / (l1 == 0 ? 1 : l1));
-                timeoutAddr.reset();
-                count.set(0);
             }
         }
     }

@@ -27,7 +27,7 @@ public class ProviderManager {
                 //memory*cpu*disk*net)
                 double ratio = calculateCPURatio();
                 double mRatio = calculateMemory();
-                weight = Math.max(1.0, mRatio * ratio * 1000);
+                weight = Math.max(10.0, mRatio * ratio * 1024);
                 return weight;
             }
         }
