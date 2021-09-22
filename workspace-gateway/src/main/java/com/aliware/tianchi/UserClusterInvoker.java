@@ -14,7 +14,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
 import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
@@ -47,14 +46,12 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             AsyncRpcResult asyncRpcResult = (AsyncRpcResult) result;
             CompletableFuture<AppResponse> responseFuture = asyncRpcResult.getResponseFuture();
             if (!responseFuture.isDone()) {
-                CompletableFuture<AppResponse> reputCompletableFuture = new OnceCompletableFuture(responseFuture);
-                asyncRpcResult.setResponseFuture(reputCompletableFuture);
-                if (responseFuture.isDone()) {
-                    reputCompletableFuture.complete(responseFuture.getNow(EMPTY));
-                } else {
-                    checker.newTimeout(new FutureTimeoutTask(loadbalance, invocation, asyncRpcResult, invoker, invokers),
-                            delay, TimeUnit.MILLISECONDS);
-                }
+                AsyncRpcResult rpcResult = new AsyncRpcResult(new OnceCompletableFuture(responseFuture), invocation);
+                checker.newTimeout(new FutureTimeoutTask(loadbalance, invocation, rpcResult, invoker, invokers),
+                        delay, TimeUnit.MILLISECONDS);
+                return rpcResult;
+            } else {
+                return result;
             }
         }
         return result;
@@ -106,15 +103,27 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         CompletableFuture<AppResponse> responseFuture;
 
         public OnceCompletableFuture(CompletableFuture<AppResponse> responseFuture) {
+            register(responseFuture);
+            if (responseFuture.isDone()) {
+                this.complete(responseFuture.getNow(EMPTY));
+            }
+        }
+
+        private void register(CompletableFuture<AppResponse> responseFuture) {
             this.responseFuture = responseFuture;
+            this.responseFuture.whenComplete((appResponse, throwable) -> {
+                if (null == throwable) {
+                    this.complete(appResponse);
+                }
+            });
         }
 
         public boolean replace(CompletableFuture<AppResponse> responseFuture) {
-            if(this.isDone()){
+            if (this.isDone()) {
                 return false;
             }
             CompletableFuture<AppResponse> lastFuture = this.responseFuture;
-            this.responseFuture = responseFuture;
+            register(responseFuture);
 
             if (!lastFuture.cancel(true)) {
                 this.complete(lastFuture.getNow(EMPTY));
