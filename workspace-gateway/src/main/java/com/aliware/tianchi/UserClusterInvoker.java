@@ -142,7 +142,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             this.responseFuture = responseFuture;
             this.responseFuture.whenComplete((appResponse, throwable) -> {
                 if (null == throwable && !appResponse.hasException()) {
-                    this.complete(appResponse);
+                    OnceCompletableFuture.this.complete(appResponse);
                 }
             });
         }
