@@ -41,20 +41,35 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     protected Result doInvoke(Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
         Invoker<T> invoker = this.select(loadbalance, invocation, invokers, null);
         Result result = invoker.invoke(invocation);
+        return checkOrInvoke(result, invocation, invokers, loadbalance, invoker);
+    }
+
+    private Result checkOrInvoke(Result result, Invocation invocation, List<Invoker<T>> invokers,
+                                 LoadBalance loadbalance, Invoker<T> invoker) {
         if (result instanceof AsyncRpcResult) {
             //这里去替换CompletableFuture
             AsyncRpcResult asyncRpcResult = (AsyncRpcResult) result;
             CompletableFuture<AppResponse> responseFuture = asyncRpcResult.getResponseFuture();
+            //这里需要判断是否有异常
             if (!responseFuture.isDone()) {
                 AsyncRpcResult rpcResult = new AsyncRpcResult(new OnceCompletableFuture(responseFuture), invocation);
                 checker.newTimeout(new FutureTimeoutTask(loadbalance, invocation, rpcResult, invoker, invokers),
                         delay, TimeUnit.MILLISECONDS);
                 return rpcResult;
+            } else if (asyncRpcResult.hasException()) {
+                //另选一个节点
+                invoker = this.select(loadbalance, invocation, invokers, Collections.singletonList(invoker));
+                result = invoker.invoke(invocation);
+                return checkOrInvoke(result, invocation, invokers, loadbalance, invoker);
             } else {
                 return result;
             }
         }
         return result;
+    }
+
+    private boolean isOK(AsyncRpcResult asyncRpcResult) {
+        return asyncRpcResult.getResponseFuture().isDone() && !asyncRpcResult.hasException();
     }
 
     @Override
@@ -84,7 +99,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         @Override
         public void run(Timeout timeout) throws Exception {
             CompletableFuture<AppResponse> responseFuture = asyncRpcResult.getResponseFuture();
-            if (responseFuture == null || responseFuture.isDone()) {
+            if (responseFuture == null || (responseFuture.isDone() && !asyncRpcResult.hasException())) {
                 return;
             }
             NodeState state = NodeManager.state(invoker);
@@ -93,7 +108,18 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             Result result = invoker.invoke(invocation);
             //同样将结果放置到这里
             OnceCompletableFuture oncefuture = (OnceCompletableFuture) responseFuture;
+            checkOrTimeout(result, oncefuture, timeout);
+        }
+
+        public void checkOrTimeout(Result result, OnceCompletableFuture oncefuture, Timeout timeout) {
+            //同样将结果放置到这里
             if (oncefuture.replace(((AsyncRpcResult) result).getResponseFuture())) {
+                if (result.hasException()) {
+                    invoker = select(loadbalance, invocation, invokers, Collections.singletonList(invoker));
+                    result = invoker.invoke(invocation);
+                    checkOrTimeout(result, oncefuture, timeout);
+                    return;
+                }
                 timeout.timer().newTimeout(timeout.task(), delay, TimeUnit.MILLISECONDS);
             }
         }
@@ -105,14 +131,17 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         public OnceCompletableFuture(CompletableFuture<AppResponse> responseFuture) {
             register(responseFuture);
             if (responseFuture.isDone()) {
-                this.complete(responseFuture.getNow(EMPTY));
+                AppResponse appResponse = responseFuture.getNow(EMPTY);
+                if (!appResponse.hasException()) {
+                    this.complete(appResponse);
+                }
             }
         }
 
         private void register(CompletableFuture<AppResponse> responseFuture) {
             this.responseFuture = responseFuture;
             this.responseFuture.whenComplete((appResponse, throwable) -> {
-                if (null == throwable) {
+                if (null == throwable && !appResponse.hasException()) {
                     this.complete(appResponse);
                 }
             });
@@ -126,12 +155,20 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             register(responseFuture);
 
             if (!lastFuture.cancel(true)) {
-                this.complete(lastFuture.getNow(EMPTY));
-                this.responseFuture.cancel(true);
-                return false;
+                AppResponse appResponse = lastFuture.getNow(EMPTY);
+                if (!appResponse.hasException()) {
+                    this.complete(appResponse);
+                    this.responseFuture.cancel(true);
+                    return false;
+                }
             }
             if (this.responseFuture.isDone()) {
-                this.complete(this.responseFuture.getNow(EMPTY));
+                AppResponse appResponse = this.responseFuture.getNow(EMPTY);
+                if (!appResponse.hasException()) {
+                    this.complete(appResponse);
+                } else {
+                    return true;
+                }
             } else {
                 return true;
             }
