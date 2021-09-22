@@ -10,6 +10,7 @@ import org.apache.dubbo.rpc.cluster.Directory;
 import org.apache.dubbo.rpc.cluster.LoadBalance;
 import org.apache.dubbo.rpc.cluster.support.AbstractClusterInvoker;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -58,7 +59,9 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 return rpcResult;
             } else if (asyncRpcResult.hasException()) {
                 //另选一个节点
-                invoker = this.select(loadbalance, invocation, invokers, Collections.singletonList(invoker));
+                ArrayList<Invoker<T>> newInvokers = new ArrayList<>(invokers);
+                newInvokers.remove(invoker);
+                invoker = this.select(loadbalance, invocation, newInvokers, null);
                 result = invoker.invoke(invocation);
                 return checkOrInvoke(result, invocation, invokers, loadbalance, invoker);
             } else {
@@ -104,7 +107,9 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             }
             NodeState state = NodeManager.state(invoker);
             state.addTimeout(time);
-            invoker = select(loadbalance, invocation, invokers, Collections.singletonList(invoker));
+            ArrayList<Invoker<T>> newInvokers = new ArrayList<>(invokers);
+            newInvokers.remove(invoker);
+            invoker = select(loadbalance, invocation, newInvokers, null);
             Result result = invoker.invoke(invocation);
             //同样将结果放置到这里
             OnceCompletableFuture oncefuture = (OnceCompletableFuture) responseFuture;
@@ -115,7 +120,9 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             //同样将结果放置到这里
             if (oncefuture.replace(((AsyncRpcResult) result).getResponseFuture())) {
                 if (result.hasException()) {
-                    invoker = select(loadbalance, invocation, invokers, Collections.singletonList(invoker));
+                    ArrayList<Invoker<T>> newInvokers = new ArrayList<>(invokers);
+                    newInvokers.remove(invoker);
+                    invoker = select(loadbalance, invocation, newInvokers, null);
                     result = invoker.invoke(invocation);
                     checkOrTimeout(result, oncefuture, timeout);
                     return;
