@@ -11,7 +11,6 @@ import org.apache.dubbo.rpc.cluster.LoadBalance;
 import org.apache.dubbo.rpc.cluster.support.AbstractClusterInvoker;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -53,8 +52,9 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             CompletableFuture<AppResponse> responseFuture = asyncRpcResult.getResponseFuture();
             //这里需要判断是否有异常
             if (!responseFuture.isDone()) {
-                AsyncRpcResult rpcResult = new AsyncRpcResult(new OnceCompletableFuture(responseFuture), invocation);
-                checker.newTimeout(new FutureTimeoutTask(loadbalance, invocation, rpcResult, invoker, invokers),
+                OnceCompletableFuture onceCompletableFuture = new OnceCompletableFuture(responseFuture);
+                AsyncRpcResult rpcResult = new AsyncRpcResult(onceCompletableFuture, invocation);
+                checker.newTimeout(new FutureTimeoutTask(loadbalance, invocation, rpcResult, onceCompletableFuture, invoker, invokers),
                         delay, TimeUnit.MILLISECONDS);
                 return rpcResult;
             } else if (asyncRpcResult.hasException()) {
@@ -64,15 +64,9 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 invoker = this.select(loadbalance, invocation, newInvokers, null);
                 result = invoker.invoke(invocation);
                 return checkOrInvoke(result, invocation, invokers, loadbalance, invoker);
-            } else {
-                return result;
             }
         }
         return result;
-    }
-
-    private boolean isOK(AsyncRpcResult asyncRpcResult) {
-        return asyncRpcResult.getResponseFuture().isDone() && !asyncRpcResult.hasException();
     }
 
     @Override
@@ -88,10 +82,12 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         LoadBalance loadbalance;
         Invocation invocation;
         final long time;
+        OnceCompletableFuture onceCompletableFuture;
 
         public FutureTimeoutTask(LoadBalance loadbalance, Invocation invocation, AsyncRpcResult asyncRpcResult,
-                                 Invoker<T> invoker, List<Invoker<T>> invokers) {
+                                 OnceCompletableFuture onceCompletableFuture, Invoker<T> invoker, List<Invoker<T>> invokers) {
             this.asyncRpcResult = asyncRpcResult;
+            this.onceCompletableFuture = onceCompletableFuture;
             this.invoker = invoker;
             this.invokers = invokers;
             this.loadbalance = loadbalance;
@@ -101,8 +97,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
         @Override
         public void run(Timeout timeout) throws Exception {
-            CompletableFuture<AppResponse> responseFuture = asyncRpcResult.getResponseFuture();
-            if (responseFuture == null || (responseFuture.isDone() && !asyncRpcResult.hasException())) {
+            if (onceCompletableFuture == null || (onceCompletableFuture.isDone() && !asyncRpcResult.hasException())) {
                 return;
             }
             NodeState state = NodeManager.state(invoker);
@@ -112,21 +107,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             invoker = select(loadbalance, invocation, newInvokers, null);
             Result result = invoker.invoke(invocation);
             //同样将结果放置到这里
-            OnceCompletableFuture oncefuture = (OnceCompletableFuture) responseFuture;
-            checkOrTimeout(result, oncefuture, timeout);
-        }
-
-        public void checkOrTimeout(Result result, OnceCompletableFuture oncefuture, Timeout timeout) {
-            //同样将结果放置到这里
-            if (oncefuture.replace(((AsyncRpcResult) result).getResponseFuture())) {
-                if (result.hasException()) {
-                    ArrayList<Invoker<T>> newInvokers = new ArrayList<>(invokers);
-                    newInvokers.remove(invoker);
-                    invoker = select(loadbalance, invocation, newInvokers, null);
-                    result = invoker.invoke(invocation);
-                    checkOrTimeout(result, oncefuture, timeout);
-                    return;
-                }
+            if (onceCompletableFuture.replace(((AsyncRpcResult) result).getResponseFuture())) {
                 timeout.timer().newTimeout(timeout.task(), delay, TimeUnit.MILLISECONDS);
             }
         }
@@ -137,18 +118,12 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
         public OnceCompletableFuture(CompletableFuture<AppResponse> responseFuture) {
             register(responseFuture);
-            if (responseFuture.isDone()) {
-                AppResponse appResponse = responseFuture.getNow(EMPTY);
-                if (!appResponse.hasException()) {
-                    this.complete(appResponse);
-                }
-            }
         }
 
         private void register(CompletableFuture<AppResponse> responseFuture) {
             this.responseFuture = responseFuture;
             this.responseFuture.whenComplete((appResponse, throwable) -> {
-                if (null == throwable && !appResponse.hasException()) {
+                if (null == throwable && null != appResponse && !appResponse.hasException()) {
                     OnceCompletableFuture.this.complete(appResponse);
                 }
             });
@@ -158,28 +133,8 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             if (this.isDone()) {
                 return false;
             }
-            CompletableFuture<AppResponse> lastFuture = this.responseFuture;
             register(responseFuture);
-
-            if (!lastFuture.cancel(true)) {
-                AppResponse appResponse = lastFuture.getNow(EMPTY);
-                if (!appResponse.hasException()) {
-                    this.complete(appResponse);
-                    this.responseFuture.cancel(true);
-                    return false;
-                }
-            }
-            if (this.responseFuture.isDone()) {
-                AppResponse appResponse = this.responseFuture.getNow(EMPTY);
-                if (!appResponse.hasException()) {
-                    this.complete(appResponse);
-                } else {
-                    return true;
-                }
-            } else {
-                return true;
-            }
-            return false;
+            return true;
         }
     }
 }
