@@ -2,12 +2,7 @@ package com.aliware.tianchi;
 
 import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
-import org.apache.dubbo.remoting.RemotingException;
-import org.apache.dubbo.remoting.TimeoutException;
 import org.apache.dubbo.rpc.*;
-
-import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
-import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
 
 /**
  * 客户端过滤器（选址后）
@@ -19,23 +14,27 @@ import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
 public class TestClientFilter implements Filter, BaseFilter.Listener {
 
 
-    private static final String CLIENT_MONITOR_START = "client_monitor_start";
-
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        //已经明确发往一个provider, 此时的拦截
-        invocation.put(CLIENT_MONITOR_START, System.currentTimeMillis());
-        return invoker.invoke(invocation);
+        NodeManager.state(invoker).clientActive.getAndIncrement();
+        try {
+            return invoker.invoke(invocation);
+        } finally {
+            NodeManager.state(invoker).clientActive.getAndDecrement();
+        }
     }
 
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         NodeState state = NodeManager.state(invoker);
-        String value = appResponse.getAttachment("weight");
+        String value = appResponse.getAttachment("w");
         if (null != value) {
-            state.setWeight(Long.parseLong(value));
+            state.setServerActive(Long.parseLong(value));
         }
-        state.addTimeout(System.currentTimeMillis() - (long) invocation.get(CLIENT_MONITOR_START));
+        value = appResponse.getAttachment("c");
+        if (null != value) {
+            state.setCnt(Integer.parseInt(value));
+        }
     }
 
     @Override

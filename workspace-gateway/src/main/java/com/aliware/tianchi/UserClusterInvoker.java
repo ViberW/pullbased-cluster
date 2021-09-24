@@ -40,21 +40,38 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
     @Override
     protected Result doInvoke(Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
+        //
         Invoker<T> invoker = this.select(loadbalance, invocation, invokers, null);
-        Result result = invoker.invoke(invocation);
+        Result result = doInvoked(invocation, invokers, loadbalance, invoker);
         if (result instanceof AsyncRpcResult) {
-            AsyncRpcResult asyncRpcResult = (AsyncRpcResult) result;
-            CompletableFuture<AppResponse> responseFuture = asyncRpcResult.getResponseFuture();
-            if (!responseFuture.isDone()) {
-                OnceCompletableFuture onceCompletableFuture = new OnceCompletableFuture(responseFuture);
-                AsyncRpcResult rpcResult = new AsyncRpcResult(onceCompletableFuture, invocation);
-                RpcContext.getServiceContext().setFuture(new FutureAdapter<>(onceCompletableFuture));
-                checker.newTimeout(new FutureTimeoutTask(loadbalance, invocation, rpcResult, onceCompletableFuture, invoker, invokers),
-                        delay, TimeUnit.MILLISECONDS);
-                return rpcResult;
-            }
+            CompletableFuture<AppResponse> responseFuture = ((AsyncRpcResult) result).getResponseFuture();
+            OnceCompletableFuture onceCompletableFuture = new OnceCompletableFuture(responseFuture);
+            AsyncRpcResult rpcResult = new AsyncRpcResult(onceCompletableFuture, invocation);
+            RpcContext.getServiceContext().setFuture(new FutureAdapter<>(onceCompletableFuture));
+            checker.newTimeout(new FutureTimeoutTask(loadbalance, invocation, rpcResult, onceCompletableFuture, invoker, invokers),
+                    delay, TimeUnit.MILLISECONDS);
+            return rpcResult;
         }
         return result;
+    }
+
+    private Result doInvoked(Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance, Invoker<T> invoker) {
+        try {
+            return invoker.invoke(invocation);
+        } catch (RpcException e) {
+            if (e.isNetwork()) {
+                NodeManager.state(invoker).setCnt(1);
+                if (invokers.size() <= 1) {
+                    throw e;
+                }
+                ArrayList<Invoker<T>> newInvokers = new ArrayList<>(invokers);
+                newInvokers.remove(invoker);
+                invoker = this.select(loadbalance, invocation, newInvokers, null);
+                return doInvoked(invocation, newInvokers, loadbalance, invoker);
+            } else {
+                throw e;
+            }
+        }
     }
 
     @Override
@@ -95,15 +112,17 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                         invocation.getMethodName() + ", provider: " + getUrl())));
                 return;
             }
-            NodeState state = NodeManager.state(invoker);
-            state.addTimeout(time);
             ArrayList<Invoker<T>> newInvokers = new ArrayList<>(this.invokers);
             newInvokers.remove(invoker);
             invoker = select(loadbalance, invocation, newInvokers, null);
-            Result result = invoker.invoke(invocation);
-            //同样将结果放置到这里
-            if (onceCompletableFuture.replace(((AsyncRpcResult) result).getResponseFuture())) {
-                timeout.timer().newTimeout(timeout.task(), delay, TimeUnit.MILLISECONDS);
+            try {
+                Result result = doInvoked(invocation, newInvokers, loadbalance, invoker);
+                //同样将结果放置到这里
+                if (onceCompletableFuture.replace(((AsyncRpcResult) result).getResponseFuture())) {
+                    timeout.timer().newTimeout(timeout.task(), delay, TimeUnit.MILLISECONDS);
+                }
+            } catch (RpcException e) {
+                asyncRpcResult.setException(e);
             }
         }
     }
