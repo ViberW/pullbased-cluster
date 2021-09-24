@@ -16,16 +16,14 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         ProviderManager.activeConnect.getAndIncrement();
-        int cnt = ProviderManager.requestCnt.getAndIncrement();
+        long begin = System.currentTimeMillis();
         try {
-            ProviderManager.beginTime(cnt);
-            Result result = invoker.invoke(invocation);
-            result.setAttachment("c", ProviderManager.endTime(cnt));
-            return result;
+            return invoker.invoke(invocation);
         } catch (Exception e) {
             throw e;
         } finally {
             ProviderManager.activeConnect.getAndDecrement();
+            ProviderManager.endTime(System.currentTimeMillis() - begin);
         }
     }
 
@@ -33,6 +31,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         // 获取内存信息样例 --这些信息仅仅在访问时间较长时触发计算, 没必要每次都计算
         appResponse.setAttachment("w", ProviderManager.calculateWeight());
+        appResponse.setAttachment("c", ProviderManager.calculateTime());
     }
 
     @Override

@@ -7,9 +7,10 @@ import oshi.hardware.HardwareAbstractionLayer;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
+
+import static java.lang.Math.exp;
 
 /**
  * @author Viber
@@ -19,7 +20,7 @@ import java.util.concurrent.atomic.LongAdder;
  */
 public class ProviderManager {
     private static AtomicLong lastTime = new AtomicLong(System.currentTimeMillis());
-    private static long interval = TimeUnit.SECONDS.toMillis(2);
+    private static long interval = TimeUnit.SECONDS.toMillis(3);
     private static SystemInfo si = new SystemInfo();
     private static HardwareAbstractionLayer hal = si.getHardware();
     //记录当前的可用连接数
@@ -29,57 +30,39 @@ public class ProviderManager {
     public static AtomicLong count = new AtomicLong(1);
     public static AtomicBoolean once = new AtomicBoolean(false);
 
-    private static int capacity = 2000000;
-    private static int preSize = 500;
-    private static long[] start = new long[capacity + preSize];
-    private static long[] end = new long[capacity + preSize];
-    private static final int limit = 5;
-    public static AtomicInteger requestCnt = new AtomicInteger(0);
+    private static LongAdder adder = new LongAdder();
+    private static AtomicLong timeCount = new AtomicLong(0);
+    private static final double ALPHA = 1 - exp(-5 / 60.0);
+    private static AtomicLong lastCntTime = new AtomicLong(System.currentTimeMillis());
+    private static volatile int rate = 1;
+    private static volatile boolean initialized = false;
 
-    public static void beginTime(int cur) {
-        cur %= capacity;
-        cur += preSize;
-        long now = System.nanoTime();
-        start[cur] = now;
-        end[cur] = -1;
-        if (cur >= capacity) {
-            start[cur - capacity] = now;
-            end[cur - capacity] = -1;
-        }
+    public static void endTime(long elapsed) {
+        adder.add(elapsed);
+        timeCount.getAndIncrement();
     }
 
-    public static int endTime(int cur) {
-        cur %= capacity;
-        cur += preSize;
-        long now = System.nanoTime();
-        end[cur] = now;
-        if (cur >= capacity) {
-            end[cur - capacity] = now;
-        }
-
-        int c = 0;
-        int short_c = 0;
-        for (int i = cur; i >= 0; i--) {
-            if (start[i] == 0 || end[i] - now > 500 * 1e6) {
-                break;
-            }
-            if (end[i] != -1) {
-                c++;
-                if (end[i] - start[i] <= limit * 1e6) { //5ms
-                    short_c++;
+    public static long calculateTime() {
+        long l = lastCntTime.get();
+        if (System.currentTimeMillis() >= l) {
+            if (lastCntTime.compareAndSet(l, l + interval)) {
+                long c = timeCount.getAndSet(0);
+                long sum = adder.sumThenReset();
+                if (c == 0) {
+                    return rate;
                 }
-            } else if (now - start[i] > limit * 1e6) {
-                c++;
-            }
-            if (c >= 500) {
-                break;
+                int instantRate = (int) (sum / c);
+                if (initialized) {
+                    rate = Math.max(1, rate + (int) (ALPHA * (instantRate - rate)));
+                } else {
+                    rate = Math.max(1, instantRate);
+                    initialized = true;
+                }
             }
         }
-        if (c == 0) {
-            return 1000;
-        }
-        return Math.min(1, short_c * 1000 / c);
+        return rate;
     }
+
 
     public static double calculateWeight() {
         long l = lastTime.get();
