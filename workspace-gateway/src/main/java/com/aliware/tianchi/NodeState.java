@@ -16,7 +16,7 @@ import static java.lang.Math.exp;
  */
 public class NodeState {
     private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
-    private static final long timeInterval = TimeUnit.SECONDS.toMillis(1);
+    private static final long timeInterval = TimeUnit.SECONDS.toMillis(3);
     public volatile long serverActive = 1;
     public AtomicLong failure = new AtomicLong(0);
     public AtomicLong total = new AtomicLong(1);
@@ -52,7 +52,7 @@ public class NodeState {
                 long f = failure.getAndSet(0);
                 if (c != 0) {
                     int instantRate = (int) (f / c);
-                    failureRatio = Math.max(1, failureRatio + (int) (ALPHA * (instantRate - failureRatio)));
+                    failureRatio = Math.max(0, failureRatio + (int) (ALPHA * (instantRate - failureRatio)));
                     logger.info("calculateTime:{}", failureRatio);
                 }
             }

@@ -61,7 +61,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             return invoker.invoke(invocation);
         } catch (RpcException e) {
             if (e.isNetwork()) {
-                NodeManager.state(invoker).end(false);
+                NodeManager.state(invoker).end(true);
                 if (invokers.size() <= 1) {
                     throw e;
                 }
