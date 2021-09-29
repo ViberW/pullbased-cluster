@@ -5,7 +5,10 @@ import org.apache.dubbo.rpc.Invocation;
 import org.apache.dubbo.rpc.Invoker;
 import org.apache.dubbo.rpc.RpcException;
 import org.apache.dubbo.rpc.cluster.LoadBalance;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -16,6 +19,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * 选手需要基于此类实现自己的负载均衡算法
  */
 public class UserLoadBalance implements LoadBalance {
+    private final static Logger logger = LoggerFactory.getLogger(UserLoadBalance.class);
 
     @Override
     public <T> Invoker<T> select(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
@@ -30,6 +34,7 @@ public class UserLoadBalance implements LoadBalance {
             totalWeight += weight;
         }
         long expect = ThreadLocalRandom.current().nextLong(totalWeight);
+        logger.info("totalweight:{}, expect:{}, serviceWeight:{}", totalWeight, expect, Arrays.toString(serviceWeight));
         for (int i = 0, size = invokers.size(); i < size; ++i) {
             expect -= serviceWeight[i];
             if (expect < 0) {

@@ -31,14 +31,13 @@ import org.slf4j.LoggerFactory;
 public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     private final static Logger logger = LoggerFactory.getLogger(UserClusterInvoker.class);
     private final Timer checker;
-    private static final long delay = 50;
-    private static AppResponse EMPTY = new AppResponse();
+    private static final long delay = 40;
 
     public UserClusterInvoker(Directory<T> directory) {
         super(directory);
         checker = new HashedWheelTimer(
                 new NamedThreadFactory("user-cluster-check-timer", true),
-                30, TimeUnit.MILLISECONDS, 40);
+                20, TimeUnit.MILLISECONDS, 40);
     }
 
     @Override
@@ -106,7 +105,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
         @Override
         public void run(Timeout timeout) throws Exception {
-            if (onceCompletableFuture == null || (onceCompletableFuture.isDone() && !asyncRpcResult.hasException())) {
+            if (onceCompletableFuture.isDone()) {
                 return;
             }
             if (System.currentTimeMillis() - start > time) {
@@ -115,7 +114,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 return;
             }
             ArrayList<Invoker<T>> newInvokers = new ArrayList<>(this.invokers);
-            newInvokers.remove(invoker);
+//            newInvokers.remove(invoker);
             invoker = select(loadbalance, invocation, newInvokers, null);
             Result result = doInvoked(invocation, newInvokers, loadbalance, invoker);
             //同样将结果放置到这里

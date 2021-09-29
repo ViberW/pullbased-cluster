@@ -10,6 +10,7 @@ import oshi.hardware.HardwareAbstractionLayer;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Viber
@@ -26,16 +27,15 @@ public class ProviderManager {
 
     //////
     private static final long timeInterval = TimeUnit.SECONDS.toNanos(1);
-    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(20);
-    private static final long avgInterval = TimeUnit.MILLISECONDS.toNanos(15);
+    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(10);
     private static final long windowSize = 5;
-    private static final Counter timeCounter = new Counter();
     private static final Counter counter = new Counter();
     private static final Counter okCounter = new Counter();
-    private static double lastAvg = 1;
+    private static final Counter okActive = new Counter();
     private static int lastCPU = hal.getProcessor().getLogicalProcessorCount();
     private static long lastMemory = hal.getMemory().getTotal();
     private static double change = 1D;
+    public static AtomicInteger active = new AtomicInteger(1);
     //////
 
     public static void maybeInit(Invoker<?> invoker) {
@@ -74,23 +74,24 @@ public class ProviderManager {
         public void run() {
             long high = offset();
             long low = high - windowSize;
+            long active = okCounter.sum(low, high);
             long sum = counter.sum(low, high);
-            double avg = sum == 0 ? 0 : (timeCounter.sum(low, high) * 1.0 / sum);
-            if (avg > avgInterval) {
-                weight = (long) Math.min(weight * lastAvg / avg, okCounter.max(low, high));
+            double r = sum == 0 ? 0 : (active * 1.0 / sum);
+            long avg = active == 0 ? 0 : (okCounter.sum(low, high) / active);
+            if (r < 0.6) {
+                weight = (long) Math.max(weight * (1 - r) + 1, avg);
             } else {
-                weight = Math.max(weight, okCounter.max(low, high)) + 1;
+                weight = Math.max(weight, avg) + 1;
             }
-            weight = (long) Math.max(1, change * weight) * 10;
+            weight = (long) Math.max(1, change * weight);
             change = 1;
-            lastAvg = avg;
             clean(high);
         }
     }
 
-    public static void time(long offset, long duration) {
-        timeCounter.add(offset, duration);
+    public static void time(long offset, long duration, int count) {
         if (duration < okInterval) {
+            okActive.add(offset, count); //记录小于10ms的处于并发的数量
             okCounter.add(offset, 1);
         }
         counter.add(offset, 1);
@@ -102,8 +103,8 @@ public class ProviderManager {
 
     public static void clean(long high) {
         long toKey = high - (windowSize << 1);
-        timeCounter.clean(toKey);
         counter.clean(toKey);
+        okActive.clean(toKey);
         okCounter.clean(toKey);
     }
 

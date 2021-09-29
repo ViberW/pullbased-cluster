@@ -13,18 +13,21 @@ import org.apache.dubbo.rpc.*;
 @Activate(group = CommonConstants.PROVIDER)
 public class TestServerFilter implements Filter, BaseFilter.Listener {
 
-    private static final String OFFSET = "_time_offset";
+    private static final String TIME = "_time_duration";
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         long begin = System.nanoTime();
         long offset = ProviderManager.offset();
+        int count = ProviderManager.active.getAndIncrement();
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {
             throw e;
         } finally {
-            ProviderManager.time(offset, System.nanoTime() - begin);
+            long duration = System.nanoTime() - begin;
+            invocation.setAttachment(TIME, String.valueOf(duration));
+            ProviderManager.time(offset, duration, count);
         }
     }
 
@@ -33,6 +36,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         // 获取内存信息样例 --这些信息仅仅在访问时间较长时触发计算, 没必要每次都计算
         ProviderManager.maybeInit(invoker);
         appResponse.setAttachment("w", ProviderManager.weight);
+        appResponse.setAttachment("t", invocation.getAttachment(TIME));
     }
 
     @Override
