@@ -1,5 +1,6 @@
 package com.aliware.tianchi;
 
+import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.rpc.Invoker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,13 +25,13 @@ public class ProviderManager {
     private static HardwareAbstractionLayer hal = si.getHardware();
     private static ScheduledExecutorService scheduledExecutor;
     private static volatile boolean once = true;
-    public static volatile long weight = 10;
+    public static volatile long weight = 1;
     private final static Logger logger = LoggerFactory.getLogger(ProviderManager.class);
 
     //////
     private static final long timeInterval = TimeUnit.SECONDS.toNanos(1);
-    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(15);
-    private static final long windowSize = 2;
+    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(20);
+    private static final long windowSize = 1;
     private static final Counter counter = new Counter();
     private static final Counter okCounter = new Counter();
     private static final Counter wCounter = new Counter();
@@ -41,6 +42,7 @@ public class ProviderManager {
         if (once) {
             synchronized (ProviderManager.class) {
                 if (once) {
+                    weight = invoker.getUrl().getParameter(CommonConstants.THREADS_KEY, CommonConstants.DEFAULT_THREADS) / 2;
                     scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
                     scheduledExecutor.scheduleWithFixedDelay(new SystemTask(),
                             0, 1000, TimeUnit.MILLISECONDS);
@@ -87,15 +89,13 @@ public class ProviderManager {
             double r = sum == 0 ? 1 : (okCnt * 1.0 / sum);
             long w;
             if (r < 0.8) {
-                w = expectW == 0 ? wp / 2 : Math.min(wp / 2, expectW);
-                logger.info("WeightTask1:{}, expectW:{}", wp, expectW);
+                w = (long) (expectW == 0 ? wp * 0.8 : Math.min(wp, expectW) * 0.8);
             } else {
                 w = Math.max(wp, expectW);
-                logger.info("WeightTask2:{}, expectW:{}", wp, expectW);
             }
             cm = 1;
             weight = Math.max(1, w);
-            clean(high);
+            clean(high); //需要计算出一个可靠的运行量
         }
     }
 

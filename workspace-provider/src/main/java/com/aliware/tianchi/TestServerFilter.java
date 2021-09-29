@@ -18,13 +18,12 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         long begin = System.nanoTime();
-        int count = ProviderManager.active.getAndIncrement();
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {
             throw e;
         } finally {
-            ProviderManager.active.getAndDecrement();
+            int count = ProviderManager.active.getAndDecrement();
             ProviderManager.time(System.nanoTime() - begin, count);
         }
     }

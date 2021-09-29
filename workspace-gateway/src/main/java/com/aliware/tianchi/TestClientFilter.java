@@ -19,12 +19,14 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        NodeManager.state(invoker).active.getAndIncrement();
         return invoker.invoke(invocation);
     }
 
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         NodeState state = NodeManager.state(invoker);
+        state.active.getAndDecrement();
 //        String value = appResponse.getObjectAttachment("w");
 //        if (null != value) {
         state.setServerActive(/*Long.parseLong(value)*/(Long) appResponse.getObjectAttachment("w"));

@@ -25,12 +25,14 @@ public class NodeState {
     private static final double ALPHA = 1 - exp(-5 / 60.0);
     public volatile double failureRatio = 0;
     private final AtomicLong lastTime = new AtomicLong(System.currentTimeMillis());
+    public final AtomicLong active = new AtomicLong(1);
 
     public NodeState() {
     }
 
     public long getWeight() {
-        return (long) (serverActive * 100 * (1 - failureRatio) * cm);
+        long sa = this.serverActive;
+        return (long) ((sa - Math.min(sa, active.get())) * (1 - failureRatio) * cm);
     }
 
     public void setServerActive(long w) {
