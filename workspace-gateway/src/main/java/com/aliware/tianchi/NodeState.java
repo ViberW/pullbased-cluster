@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 
 import static java.lang.Math.exp;
 
@@ -19,15 +20,17 @@ public class NodeState {
     private static final long timeInterval = TimeUnit.SECONDS.toMillis(3);
     public volatile long serverActive = 1;
     public volatile double cm = 1;
-    public AtomicLong failure = new AtomicLong(0);
-    public AtomicLong total = new AtomicLong(1);
+    public LongAdder failure = new LongAdder();
+    public LongAdder total = new LongAdder();
     private static final double ALPHA = 1 - exp(-5 / 60.0);
     public volatile double failureRatio = 0;
     private final AtomicLong lastTime = new AtomicLong(System.currentTimeMillis());
 
+    public NodeState() {
+    }
 
     public long getWeight() {
-        return (long) Math.max(1, serverActive * 100 * (1 - failureRatio) * cm);
+        return (long) (serverActive * 100 * (1 - failureRatio) * cm);
     }
 
     public void setServerActive(long w) {
@@ -39,9 +42,9 @@ public class NodeState {
     }
 
     public void end(boolean error) {
-        total.getAndIncrement();
+        total.add(1);
         if (error) {
-            failure.getAndIncrement();
+            failure.add(1);
         }
         calculateFailure();
     }
@@ -51,8 +54,8 @@ public class NodeState {
         long l = lastTime.get();
         if (System.currentTimeMillis() >= l) {
             if (lastTime.compareAndSet(l, l + timeInterval)) {
-                long c = total.getAndSet(0);
-                long f = failure.getAndSet(0);
+                long c = total.sumThenReset();
+                long f = failure.sumThenReset();
                 if (c != 0) {
                     int instantRate = (int) (f / c);
                     double fr = failureRatio;

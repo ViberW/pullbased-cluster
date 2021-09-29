@@ -34,7 +34,6 @@ public class UserLoadBalance implements LoadBalance {
             totalWeight += weight;
         }
         long expect = ThreadLocalRandom.current().nextLong(totalWeight);
-        logger.info("totalweight:{}, expect:{}, serviceWeight:{}", totalWeight, expect, Arrays.toString(serviceWeight));
         for (int i = 0, size = invokers.size(); i < size; ++i) {
             expect -= serviceWeight[i];
             if (expect < 0) {

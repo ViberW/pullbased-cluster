@@ -10,6 +10,8 @@ import org.apache.dubbo.rpc.cluster.Directory;
 import org.apache.dubbo.rpc.cluster.LoadBalance;
 import org.apache.dubbo.rpc.cluster.support.AbstractClusterInvoker;
 import org.apache.dubbo.rpc.protocol.dubbo.FutureAdapter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,9 +20,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
 import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * 集群实现
@@ -31,7 +30,7 @@ import org.slf4j.LoggerFactory;
 public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     private final static Logger logger = LoggerFactory.getLogger(UserClusterInvoker.class);
     private final Timer checker;
-    private static final long delay = 40;
+    private static final long delay = 50;
 
     public UserClusterInvoker(Directory<T> directory) {
         super(directory);
@@ -90,13 +89,14 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         final long time;
         OnceCompletableFuture onceCompletableFuture;
         long start;
+        List<Invoker<T>> origin;
 
         public FutureTimeoutTask(LoadBalance loadbalance, Invocation invocation, AsyncRpcResult asyncRpcResult,
                                  OnceCompletableFuture onceCompletableFuture, Invoker<T> invoker, List<Invoker<T>> invokers) {
             this.asyncRpcResult = asyncRpcResult;
             this.onceCompletableFuture = onceCompletableFuture;
             this.invoker = invoker;
-            this.invokers = invokers;
+            this.origin = invokers;
             this.loadbalance = loadbalance;
             this.invocation = invocation;
             time = invoker.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
@@ -113,10 +113,15 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                         invocation.getMethodName() + ", provider: " + getUrl())));
                 return;
             }
-            ArrayList<Invoker<T>> newInvokers = new ArrayList<>(this.invokers);
-            newInvokers.remove(invoker);
-            invoker = select(loadbalance, invocation, newInvokers, null);
-            Result result = doInvoked(invocation, newInvokers, loadbalance, invoker);
+            if (this.invokers == null) {
+                this.invokers = new ArrayList<>(origin);
+            }
+            invokers.remove(invoker);
+            if (invokers.isEmpty()) {
+                this.invokers = new ArrayList<>(origin);
+            }
+            invoker = select(loadbalance, invocation, invokers, null);
+            Result result = doInvoked(invocation, invokers, loadbalance, invoker);
             //同样将结果放置到这里
             if (onceCompletableFuture.replace(((AsyncRpcResult) result).getResponseFuture())) {
                 onceCompletableFuture.timeout = timeout.timer().newTimeout(timeout.task(), delay, TimeUnit.MILLISECONDS);

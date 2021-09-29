@@ -46,7 +46,7 @@ public class ProviderManager {
                             0, 1000, TimeUnit.MILLISECONDS);
                     //这个单线程处理
                     scheduledExecutor.scheduleWithFixedDelay(new WeightTask(),
-                            200, 100, TimeUnit.MILLISECONDS);
+                            200, 200, TimeUnit.MILLISECONDS);
                     once = false;
                 }
             }
@@ -62,8 +62,8 @@ public class ProviderManager {
         public void run() {
             double lastm = mr;
             double lastc = cr;
-            double m = (mr = calculateMemory()) - lastm;
-            double c = (cr = calculateCPURatio()) - lastc;
+            double m = lastm - (mr = calculateMemory());
+            double c = lastc - (cr = calculateCPURatio());
             if (m > 0.15 || c > 0.15) {
                 cm = (m > 0.15 && c > 0.15 ? 0.5 : 0.75);
             } else {
@@ -84,14 +84,15 @@ public class ProviderManager {
             long okCnt = okCounter.sum(low, high);
             long sum = counter.sum(low, high);
             long expectW = okCnt == 0 ? wp : wCnt / okCnt;
-            double r = sum == 0 ? 0 : (okCnt * 1.0 / sum);
+            double r = sum == 0 ? 1 : (okCnt * 1.0 / sum);
             long w;
             if (r < 0.8) {
                 w = expectW == 0 ? wp / 2 : Math.min(wp / 2, expectW);
+                logger.info("WeightTask1:{}, expectW:{}", wp, expectW);
             } else {
                 w = Math.max(wp, expectW);
+                logger.info("WeightTask2:{}, expectW:{}", wp, expectW);
             }
-            logger.info("WeightTask:{}, expectW:{}", w, expectW);
             cm = 1;
             weight = Math.max(1, w);
             clean(high);
@@ -108,7 +109,7 @@ public class ProviderManager {
     }
 
     public static long offset() {
-        return System.currentTimeMillis() / timeInterval;
+        return System.nanoTime() / timeInterval;
     }
 
     public static void clean(long high) {
