@@ -25,49 +25,24 @@ public class NodeState {
     public double failureRatio = 0;
     private AtomicLong lastTime = new AtomicLong(System.currentTimeMillis());
 
-    public LongAdder delay = new LongAdder();
-    public LongAdder delayCnt = new LongAdder();
-    private AtomicLong lastDelay = new AtomicLong(System.currentTimeMillis());
-    public double delayTime = 1;
-    private static final long one = TimeUnit.MILLISECONDS.toNanos(1);
-
 
     public long getWeight() {
-        return (long) Math.max(1, ((serverActive * 100 - Math.min(serverActive, active.get()) * 80)
-                * (1 - failureRatio)) * delayTime);
+        return (long) Math.max(1, (serverActive * 10 - Math.min(serverActive, active.get()) * 8)
+                * (1 - failureRatio));
     }
 
     public void setServerActive(long w) {
         serverActive = w;
     }
 
-    public void end(boolean ok) {
+    public void end(boolean error) {
         total.getAndIncrement();
-        if (!ok) {
+        if (error) {
             failure.getAndIncrement();
         }
         calculateTime();
     }
 
-    public void delay(long d) {
-        delay.add(d);
-        delayCnt.add(1);
-        calculateDelay();
-    }
-
-    public void calculateDelay() {
-        long l = lastDelay.get();
-        if (System.currentTimeMillis() >= l) {
-            if (lastDelay.compareAndSet(l, l + timeInterval)) {
-                long c = delayCnt.sumThenReset();
-                long f = delay.sumThenReset();
-                if (c != 0 && f != 0) {
-                    int dt = (int) (f / c);
-                    delayTime = Math.max(0.1, delayTime + (int) (ALPHA * (limit / dt - delayTime)));
-                }
-            }
-        }
-    }
 
     public void calculateTime() {
         long l = lastTime.get();

@@ -14,12 +14,10 @@ import org.apache.dubbo.rpc.*;
 @Activate(group = CommonConstants.CONSUMER)
 public class TestClientFilter implements Filter, BaseFilter.Listener {
 
-    private static final String TIME = "time_duration";
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         NodeManager.state(invoker).active.getAndIncrement();
-        invocation.setObjectAttachment(TIME, System.nanoTime());
         return invoker.invoke(invocation);
     }
 
@@ -30,18 +28,10 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         if (null != value) {
             state.setServerActive(Long.parseLong(value));
         }
-        value = appResponse.getAttachment("t");
-        if (null != value) {
-            //网络延迟
-            long delay = Math.max(0, System.nanoTime() - (long) invocation.getObjectAttachment(TIME)
-                    - Long.parseLong(value));
-            NodeManager.state(invoker).delay(delay);
-        }
         //仅仅记录超时的 -- 乘以weight
         NodeManager.state(invoker).active.getAndDecrement();
-        if (appResponse.hasException()) {
-            NodeManager.state(invoker).end(appResponse.getException() instanceof TimeoutException);
-        }
+        NodeManager.state(invoker).end(appResponse.hasException() &&
+                appResponse.getException() instanceof TimeoutException);
     }
 
     @Override
