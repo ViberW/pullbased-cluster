@@ -1,6 +1,5 @@
 package com.aliware.tianchi;
 
-import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.rpc.Invoker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,7 +41,6 @@ public class ProviderManager {
         if (once) {
             synchronized (ProviderManager.class) {
                 if (once) {
-                    weight = invoker.getUrl().getParameter(CommonConstants.THREADS_KEY, CommonConstants.DEFAULT_THREADS);
                     scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
                     scheduledExecutor.scheduleWithFixedDelay(new SystemTask(),
                             0, 1000, TimeUnit.MILLISECONDS);
@@ -66,8 +64,8 @@ public class ProviderManager {
             double lastc = cr;
             double m = (mr = calculateMemory()) - lastm;
             double c = (cr = calculateCPURatio()) - lastc;
-            if (m > 0.2 || c > 0.2) {
-                cm = (m > 0.2 && c > 0.2 ? 0.5 : 0.75);
+            if (m > 0.15 || c > 0.15) {
+                cm = (m > 0.15 && c > 0.15 ? 0.5 : 0.75);
             } else {
                 cm = 1;
             }
@@ -90,9 +88,9 @@ public class ProviderManager {
             } else {
                 w = Math.max(wp, expect.get());
             }
-            weight = Math.max(1, w);
+            logger.info("WeightTask:{}", w);
             cm = 1;
-            logger.info("WeightTask:{}", weight);
+            weight = Math.max(1, w);
             clean(high);
         }
     }

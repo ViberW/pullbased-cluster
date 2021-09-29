@@ -4,6 +4,8 @@ import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
 import org.apache.dubbo.remoting.TimeoutException;
 import org.apache.dubbo.rpc.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 客户端过滤器（选址后）
@@ -13,7 +15,7 @@ import org.apache.dubbo.rpc.*;
  */
 @Activate(group = CommonConstants.CONSUMER)
 public class TestClientFilter implements Filter, BaseFilter.Listener {
-
+    private final static Logger logger = LoggerFactory.getLogger(TestClientFilter.class);
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
@@ -23,13 +25,14 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         NodeState state = NodeManager.state(invoker);
-        String value = appResponse.getAttachment("w");
-        if (null != value) {
-            state.setServerActive(Long.parseLong(value));
-        }
-        if (null != value) {
-            state.setCM(Double.parseDouble(value));
-        }
+//        String value = appResponse.getObjectAttachment("w");
+//        if (null != value) {
+        state.setServerActive(/*Long.parseLong(value)*/(Long) appResponse.getObjectAttachment("w"));
+
+//        }
+//        if (null != value) {
+        state.setCM((Double) appResponse.getObjectAttachment("c"));
+//        }
         NodeManager.state(invoker).end(appResponse.hasException() &&
                 appResponse.getException() instanceof TimeoutException);
     }
