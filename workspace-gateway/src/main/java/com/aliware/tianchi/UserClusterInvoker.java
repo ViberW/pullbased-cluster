@@ -19,6 +19,9 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
 import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * 集群实现
  * 必选接口，核心接口
@@ -26,7 +29,7 @@ import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
  * 选手需要基于此类实现自己的集群调度算法
  */
 public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
-
+    private final static Logger logger = LoggerFactory.getLogger(UserClusterInvoker.class);
     private final Timer checker;
     private static final long delay = 50;
     private static AppResponse EMPTY = new AppResponse();
@@ -59,7 +62,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             return invoker.invoke(invocation);
         } catch (RpcException e) {
             if (e.isNetwork()) {
-                NodeManager.state(invoker).setCnt(NodeState.limit);
+                NodeManager.state(invoker).end(false);
                 if (invokers.size() <= 1) {
                     throw e;
                 }
@@ -130,9 +133,9 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         }
 
         private void register(CompletableFuture<AppResponse> responseFuture) {
-            if (null != this.responseFuture && !this.responseFuture.isDone()) {
+            /*if (null != this.responseFuture && !this.responseFuture.isDone()) {
                 this.responseFuture.cancel(true);
-            }
+            }*/
             this.responseFuture = responseFuture;
             this.responseFuture.whenComplete((appResponse, throwable) -> {
                 if (null != appResponse && !appResponse.hasException()) {

@@ -2,6 +2,7 @@ package com.aliware.tianchi;
 
 import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
+import org.apache.dubbo.remoting.TimeoutException;
 import org.apache.dubbo.rpc.*;
 
 /**
@@ -16,12 +17,8 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        NodeManager.state(invoker).clientActive.getAndIncrement();
-        try {
-            return invoker.invoke(invocation);
-        } finally {
-            NodeManager.state(invoker).clientActive.getAndDecrement();
-        }
+        NodeManager.state(invoker).active.getAndIncrement();
+        return invoker.invoke(invocation);
     }
 
     @Override
@@ -31,9 +28,14 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         if (null != value) {
             state.setServerActive(Long.parseLong(value));
         }
-        value = appResponse.getAttachment("c");
+        /*value = appResponse.getAttachment("c");
         if (null != value) {
             state.setCnt(Integer.parseInt(value));
+        }*/
+        //仅仅记录超时的 -- 乘以weight
+        NodeManager.state(invoker).active.getAndDecrement();
+        if (appResponse.hasException()) {
+            NodeManager.state(invoker).end(appResponse.getException() instanceof TimeoutException);
         }
     }
 
