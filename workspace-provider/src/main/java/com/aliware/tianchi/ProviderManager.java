@@ -91,7 +91,7 @@ public class ProviderManager {
             if (r < 0.8) {
                 w = (long) (expectW == 0 ? wp * 0.8 : Math.min(wp, expectW) * 0.8);
             } else {
-                w = Math.max(wp, expectW);
+                w = (wp + expectW) / 2;
             }
             cm = 1;
             weight = Math.max(1, w);

@@ -15,26 +15,17 @@ import org.slf4j.LoggerFactory;
  */
 @Activate(group = CommonConstants.CONSUMER)
 public class TestClientFilter implements Filter, BaseFilter.Listener {
-    private final static Logger logger = LoggerFactory.getLogger(TestClientFilter.class);
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        NodeManager.state(invoker).active.getAndIncrement();
         return invoker.invoke(invocation);
     }
 
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         NodeState state = NodeManager.state(invoker);
-        state.active.getAndDecrement();
-//        String value = appResponse.getObjectAttachment("w");
-//        if (null != value) {
-        state.setServerActive(/*Long.parseLong(value)*/(Long) appResponse.getObjectAttachment("w"));
-
-//        }
-//        if (null != value) {
+        state.setServerActive((Long) appResponse.getObjectAttachment("w"));
         state.setCM((Double) appResponse.getObjectAttachment("c"));
-//        }
         NodeManager.state(invoker).end(appResponse.hasException() &&
                 appResponse.getException() instanceof TimeoutException);
     }
