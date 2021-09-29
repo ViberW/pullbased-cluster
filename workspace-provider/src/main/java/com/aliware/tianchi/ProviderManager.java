@@ -29,12 +29,12 @@ public class ProviderManager {
 
     //////
     private static final long timeInterval = TimeUnit.SECONDS.toNanos(1);
-    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(10);
+    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(15);
     private static final long windowSize = 2;
     private static final Counter counter = new Counter();
     private static final Counter okCounter = new Counter();
+    private static final Counter wCounter = new Counter();
     public static AtomicInteger active = new AtomicInteger(1);
-    static AtomicInteger expect = new AtomicInteger(10);
     //////
 
     public static void maybeInit(Invoker<?> invoker) {
@@ -69,6 +69,7 @@ public class ProviderManager {
             } else {
                 cm = 1;
             }
+            logger.info("SystemTask:{}", cm);
         }
     }
 
@@ -78,17 +79,19 @@ public class ProviderManager {
             long wp = weight;
             long high = offset();
             long low = high - windowSize;
+
+            long wCnt = wCounter.sum(low, high);
+            long okCnt = okCounter.sum(low, high);
             long sum = counter.sum(low, high);
-            double r = sum == 0 ? 0 : (okCounter.sum(low, high) * 1.0 / sum);
+            long expectW = okCnt == 0 ? wp : wCnt / okCnt;
+            double r = sum == 0 ? 0 : (sum * 1.0 / sum);
             long w;
             if (r < 0.8) {
-                int e = expect.get() / 2;
-                expect.set(e);
-                w = Math.min((long) (wp * r + 1), e);
+                w = expectW == 0 ? wp / 2 : Math.min(wp / 2, expectW);
             } else {
-                w = Math.max(wp, expect.get());
+                w = Math.max(wp, expectW);
             }
-            logger.info("WeightTask:{}", w);
+            logger.info("WeightTask:{}, expectW:{}", w, expectW);
             cm = 1;
             weight = Math.max(1, w);
             clean(high);
@@ -100,10 +103,7 @@ public class ProviderManager {
         counter.add(offset, 1);
         if (duration < okInterval) {
             okCounter.add(offset, 1);
-            int e;
-            if ((e = expect.get()) < count) {
-                expect.compareAndSet(e, count);
-            }
+            wCounter.add(offset, count);
         }
     }
 
@@ -115,6 +115,7 @@ public class ProviderManager {
         long toKey = high - (windowSize << 1);
         counter.clean(toKey);
         okCounter.clean(toKey);
+        wCounter.clean(toKey);
     }
 
     private static double calculateMemory() {
