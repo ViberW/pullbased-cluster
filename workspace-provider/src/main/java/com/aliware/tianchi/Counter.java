@@ -3,6 +3,7 @@ package com.aliware.tianchi;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.LongStream;
 
 /**
  * @author Viber
@@ -38,7 +39,6 @@ public class Counter {
                 .mapToLong(LongAdder::sum)
                 .max().orElse(0L);
     }
-
 
     public void clean(long toOffset) {
         clean(toOffset, false);

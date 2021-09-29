@@ -18,21 +18,24 @@ public class NodeState {
     private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
     private static final long timeInterval = TimeUnit.SECONDS.toMillis(3);
     public volatile long serverActive = 1;
+    public volatile double cm = 1;
     public AtomicLong failure = new AtomicLong(0);
     public AtomicLong total = new AtomicLong(1);
-    public AtomicLong active = new AtomicLong();
     private static final double ALPHA = 1 - exp(-5 / 60.0);
-    public double failureRatio = 0;
+    public volatile double failureRatio = 0;
     private final AtomicLong lastTime = new AtomicLong(System.currentTimeMillis());
 
 
     public long getWeight() {
-        return (long) Math.max(1, (serverActive * 100 -
-                Math.min(serverActive, active.get() * (1 - failureRatio)) * 90));
+        return (long) Math.max(1, serverActive * 100 * (1 - failureRatio) * cm);
     }
 
     public void setServerActive(long w) {
         serverActive = w;
+    }
+
+    public void setCM(double c) {
+        cm = c;
     }
 
     public void end(boolean error) {
@@ -40,11 +43,11 @@ public class NodeState {
         if (error) {
             failure.getAndIncrement();
         }
-        calculateTime();
+        calculateFailure();
     }
 
 
-    public void calculateTime() {
+    public void calculateFailure() {
         long l = lastTime.get();
         if (System.currentTimeMillis() >= l) {
             if (lastTime.compareAndSet(l, l + timeInterval)) {
@@ -52,8 +55,9 @@ public class NodeState {
                 long f = failure.getAndSet(0);
                 if (c != 0) {
                     int instantRate = (int) (f / c);
-                    failureRatio = Math.max(0, failureRatio + (int) (ALPHA * (instantRate - failureRatio)));
-                    logger.info("calculateTime:{}", failureRatio);
+                    double fr = failureRatio;
+                    failureRatio = Math.max(0, fr + (int) (ALPHA * (instantRate - fr)));
+                    logger.info("calculateFailure:{}", failureRatio);
                 }
             }
         }

@@ -17,7 +17,6 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        NodeManager.state(invoker).active.getAndIncrement();
         return invoker.invoke(invocation);
     }
 
@@ -28,8 +27,9 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         if (null != value) {
             state.setServerActive(Long.parseLong(value));
         }
-        //仅仅记录超时的 -- 乘以weight
-        NodeManager.state(invoker).active.getAndDecrement();
+        if (null != value) {
+            state.setCM(Double.parseDouble(value));
+        }
         NodeManager.state(invoker).end(appResponse.hasException() &&
                 appResponse.getException() instanceof TimeoutException);
     }

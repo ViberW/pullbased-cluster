@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import oshi.SystemInfo;
 import oshi.hardware.CentralProcessor;
+import oshi.hardware.GlobalMemory;
 import oshi.hardware.HardwareAbstractionLayer;
 
 import java.util.concurrent.Executors;
@@ -24,83 +25,87 @@ public class ProviderManager {
     private static HardwareAbstractionLayer hal = si.getHardware();
     private static ScheduledExecutorService scheduledExecutor;
     private static volatile boolean once = true;
-    public static long weight = 10;
+    public static volatile long weight = 10;
     private final static Logger logger = LoggerFactory.getLogger(ProviderManager.class);
 
     //////
     private static final long timeInterval = TimeUnit.SECONDS.toNanos(1);
     private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(10);
-    private static final long windowSize = 5;
+    private static final long windowSize = 2;
     private static final Counter counter = new Counter();
     private static final Counter okCounter = new Counter();
-    private static final Counter okActive = new Counter();
-    private static int lastCPU = hal.getProcessor().getLogicalProcessorCount();
-    private static long lastMemory = hal.getMemory().getTotal();
-    private static double change = 1D;
     public static AtomicInteger active = new AtomicInteger(1);
+    static AtomicInteger expect = new AtomicInteger(10);
     //////
 
     public static void maybeInit(Invoker<?> invoker) {
         if (once) {
             synchronized (ProviderManager.class) {
                 if (once) {
-                    weight = invoker.getUrl().getParameter(CommonConstants.THREADS_KEY, CommonConstants.DEFAULT_THREADS) / 2;
+                    weight = invoker.getUrl().getParameter(CommonConstants.THREADS_KEY, CommonConstants.DEFAULT_THREADS);
                     scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+                    scheduledExecutor.scheduleWithFixedDelay(new SystemTask(),
+                            0, 1000, TimeUnit.MILLISECONDS);
                     //这个单线程处理
                     scheduledExecutor.scheduleWithFixedDelay(new WeightTask(),
-                            1000, 1000, TimeUnit.MILLISECONDS);
-                    scheduledExecutor.scheduleWithFixedDelay(new SystemTask(),
-                            0, 3000, TimeUnit.MILLISECONDS);
+                            1000, 500, TimeUnit.MILLISECONDS);
                     once = false;
                 }
             }
         }
     }
 
+    private static double mr = calculateMemory();
+    private static double cr = calculateCPURatio();
+    static volatile double cm = 0;
+
     private static class SystemTask implements Runnable {
         @Override
         public void run() {
-            CentralProcessor processor = hal.getProcessor();
-            int cpu = processor.getLogicalProcessorCount();
-            long memory = hal.getMemory().getTotal();
-            if (memory >= lastMemory && cpu >= lastCPU) {
-                change = 1;
+            double lastm = mr;
+            double lastc = cr;
+            double m = (mr = calculateMemory()) - lastm;
+            double c = (cr = calculateCPURatio()) - lastc;
+            if (m > 0.2 || c > 0.2) {
+                cm = (m > 0.2 && c > 0.2 ? 0.5 : 0.75);
             } else {
-                change = (memory >= lastMemory || cpu >= lastCPU) ? 0.75 : 0.5;
+                cm = 1;
             }
-            lastMemory = memory;
-            lastCPU = cpu;
-            logger.info("SystemTask :{}", change);
         }
     }
 
     private static class WeightTask implements Runnable {
         @Override
         public void run() {
+            long wp = weight;
             long high = offset();
             long low = high - windowSize;
-            long active = okCounter.sum(low, high);
             long sum = counter.sum(low, high);
-            double r = sum == 0 ? 0 : (active * 1.0 / sum);
-            long avg = active == 0 ? 0 : (okCounter.sum(low, high) / active);
+            double r = sum == 0 ? 0 : (okCounter.sum(low, high) * 1.0 / sum);
+            long w;
             if (r < 0.8) {
-                weight = Math.min((long) (weight * r + 1), avg);
+                int e = expect.get() / 2;
+                expect.set(e);
+                w = Math.min((long) (wp * r + 1), e);
             } else {
-                weight = Math.max(weight, avg);
+                w = Math.max(wp, expect.get());
             }
-            weight = (long) Math.max(1, change * weight);
-            logger.info("WeightTask :{}", weight);
-            change = 1;
+            weight = Math.max(1, w);
+            logger.info("WeightTask:{}", weight);
             clean(high);
         }
     }
 
-    public static void time(long offset, long duration, int count) {
-        if (duration < okInterval) {
-            okActive.add(offset, count); //记录小于10ms的处于并发的数量
-            okCounter.add(offset, 1);
-        }
+    public static void time(long duration, int count) {
+        long offset = offset();
         counter.add(offset, 1);
+        if (duration < okInterval) {
+            okCounter.add(offset, 1);
+            int e;
+            if ((e = expect.get()) < count) {
+                expect.compareAndSet(e, count);
+            }
+        }
     }
 
     public static long offset() {
@@ -110,7 +115,23 @@ public class ProviderManager {
     public static void clean(long high) {
         long toKey = high - (windowSize << 1);
         counter.clean(toKey);
-        okActive.clean(toKey);
         okCounter.clean(toKey);
+    }
+
+    private static double calculateMemory() {
+        GlobalMemory memory = hal.getMemory();
+        long total = memory.getTotal();
+        return total - memory.getAvailable() * 1.0 / total;
+    }
+
+    private static double calculateCPURatio() {
+        CentralProcessor processor = hal.getProcessor();
+        long[] ticks = processor.getSystemCpuLoadTicks();
+        long idle = ticks[CentralProcessor.TickType.IDLE.getIndex()] + ticks[CentralProcessor.TickType.IOWAIT.getIndex()];
+        long total = 0;
+        for (long tick : ticks) {
+            total += tick;
+        }
+        return total > 0L && idle >= 0L ? (double) (total - idle) / (double) total : 0.0D;
     }
 }
