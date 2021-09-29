@@ -46,7 +46,7 @@ public class ProviderManager {
                             0, 1000, TimeUnit.MILLISECONDS);
                     //这个单线程处理
                     scheduledExecutor.scheduleWithFixedDelay(new WeightTask(),
-                            1000, 500, TimeUnit.MILLISECONDS);
+                            200, 200, TimeUnit.MILLISECONDS);
                     once = false;
                 }
             }
@@ -77,14 +77,14 @@ public class ProviderManager {
         @Override
         public void run() {
             long wp = weight;
-            long high = offset();
+            long high = offset() - 1;
             long low = high - windowSize;
 
             long wCnt = wCounter.sum(low, high);
             long okCnt = okCounter.sum(low, high);
             long sum = counter.sum(low, high);
             long expectW = okCnt == 0 ? wp : wCnt / okCnt;
-            double r = sum == 0 ? 0 : (sum * 1.0 / sum);
+            double r = sum == 0 ? 0 : (okCnt * 1.0 / sum);
             long w;
             if (r < 0.8) {
                 w = expectW == 0 ? wp / 2 : Math.min(wp / 2, expectW);
