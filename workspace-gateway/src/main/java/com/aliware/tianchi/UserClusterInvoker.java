@@ -49,7 +49,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             OnceCompletableFuture onceCompletableFuture = new OnceCompletableFuture(((AsyncRpcResult) result).getResponseFuture());
             AsyncRpcResult rpcResult = new AsyncRpcResult(onceCompletableFuture, invocation);
             RpcContext.getServiceContext().setFuture(new FutureAdapter<>(onceCompletableFuture));
-            checker.newTimeout(new FutureTimeoutTask(loadbalance, invocation, rpcResult, onceCompletableFuture, invoker, invokers),
+            onceCompletableFuture.timeout = checker.newTimeout(new FutureTimeoutTask(loadbalance, invocation, rpcResult, onceCompletableFuture, invoker, invokers),
                     delay, TimeUnit.MILLISECONDS);
             return rpcResult;
         }
@@ -114,18 +114,19 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 return;
             }
             ArrayList<Invoker<T>> newInvokers = new ArrayList<>(this.invokers);
-//            newInvokers.remove(invoker);
+            newInvokers.remove(invoker);
             invoker = select(loadbalance, invocation, newInvokers, null);
             Result result = doInvoked(invocation, newInvokers, loadbalance, invoker);
             //同样将结果放置到这里
             if (onceCompletableFuture.replace(((AsyncRpcResult) result).getResponseFuture())) {
-                timeout.timer().newTimeout(timeout.task(), delay, TimeUnit.MILLISECONDS);
+                onceCompletableFuture.timeout = timeout.timer().newTimeout(timeout.task(), delay, TimeUnit.MILLISECONDS);
             }
         }
     }
 
     static class OnceCompletableFuture extends CompletableFuture<AppResponse> {
         CompletableFuture<AppResponse> responseFuture;
+        Timeout timeout;
 
         public OnceCompletableFuture(CompletableFuture<AppResponse> responseFuture) {
             register(responseFuture);
@@ -139,6 +140,9 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             this.responseFuture.whenComplete((appResponse, throwable) -> {
                 if (null != appResponse && !appResponse.hasException()) {
                     OnceCompletableFuture.this.complete(appResponse);
+                    if (null != timeout && timeout.isExpired()) {
+                        timeout.cancel();
+                    }
                 }
             });
         }

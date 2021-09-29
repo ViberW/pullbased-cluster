@@ -2,6 +2,8 @@ package com.aliware.tianchi;
 
 import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.rpc.Invoker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import oshi.SystemInfo;
 import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
@@ -24,6 +26,7 @@ public class ProviderManager {
     private static ScheduledExecutorService scheduledExecutor;
     private static volatile boolean once = true;
     public static long weight = 10;
+    private final static Logger logger = LoggerFactory.getLogger(ProviderManager.class);
 
     //////
     private static final long timeInterval = TimeUnit.SECONDS.toNanos(1);
@@ -66,6 +69,7 @@ public class ProviderManager {
             } else {
                 change = (memory >= lastMemory || cpu >= lastCPU) ? 0.75 : 0.5;
             }
+            logger.info("SystemTask :{}", change);
         }
     }
 
@@ -84,6 +88,7 @@ public class ProviderManager {
                 weight = Math.max(weight, avg) + 1;
             }
             weight = (long) Math.max(1, change * weight);
+            logger.info("WeightTask :{}", weight);
             change = 1;
             clean(high);
         }
