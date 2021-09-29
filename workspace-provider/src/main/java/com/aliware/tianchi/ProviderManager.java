@@ -91,6 +91,7 @@ public class ProviderManager {
                 w = Math.max(wp, expect.get());
             }
             weight = Math.max(1, w);
+            cm = 1;
             logger.info("WeightTask:{}", weight);
             clean(high);
         }
