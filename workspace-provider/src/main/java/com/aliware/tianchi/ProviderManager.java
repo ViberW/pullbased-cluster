@@ -30,11 +30,12 @@ public class ProviderManager {
 
     //////
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(10);
-    private static final long highLevel = TimeUnit.MILLISECONDS.toNanos(6);
-    private static final long lowLevel = TimeUnit.MILLISECONDS.toNanos(4);
-    private static final long windowSize = 3;
+    private static final long okLevel = TimeUnit.MILLISECONDS.toNanos(10);
+    private static final long lowLevel = TimeUnit.MILLISECONDS.toNanos(5);
+    private static final long windowSize = 2;
     private static final Counter counter = new Counter();
     private static final Counter timeCounter = new Counter();
+    private static final Counter okCounter = new Counter();
     public static AtomicInteger active = new AtomicInteger(1);
     //////
 
@@ -78,16 +79,15 @@ public class ProviderManager {
         @Override
         public void run() {
             long high = offset();
-            long low = high - 1 - windowSize;
+            long low = high - windowSize;
             int ac = active.get();
-            //这里是将近10ms中成功数,作为当前的平均数, 由active减去估算active中可能的剩余
-            double overRatio = ac == 0 ? 0 : (Math.max(0, ac - counter.sum(high - 1, high)) * 1.0 / ac);
             long sum = counter.sum(low, high);
+            long ok = okCounter.sum(low, high);
+            double overRatio = ac == 0 || ok > 0.9 * sum ? 0 : (Math.max(0, ac - (ok / windowSize)) * 1.0 / ac);
             long r = sum == 0 ? 1 : (timeCounter.sum(low, high) / sum);
             long w;
-            if (r > highLevel || overRatio > 0.1) {
-                long reduce = r > highLevel ? r / highLevel : (long) (overRatio * 10);
-                w = weight - reduce;
+            if (r > okLevel || overRatio > 0.1) {
+                w = weight - (r > okLevel ? r / okLevel : (long) (overRatio * 10));
             } else if (r < lowLevel) {
                 w = weight + 1;
             } else {
@@ -104,6 +104,9 @@ public class ProviderManager {
         long offset = offset();
         counter.add(offset, 1);
         timeCounter.add(offset, duration);
+        if (duration < okLevel) {
+            okCounter.add(offset, 1);
+        }
     }
 
     public static long offset() {
@@ -114,6 +117,7 @@ public class ProviderManager {
         long toKey = high - (windowSize << 2);
         counter.clean(toKey);
         timeCounter.clean(toKey);
+        okCounter.clean(toKey);
     }
 
     private static double calculateMemory() {
