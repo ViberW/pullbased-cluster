@@ -94,7 +94,6 @@ public class ProviderManager {
             } else {
                 w = weight + 1;
             }
-            cm = 1;
             weight = Math.max(1, w);
             clean(high); //需要计算出一个可靠的运行量
         }

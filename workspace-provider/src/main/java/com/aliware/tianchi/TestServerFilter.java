@@ -23,6 +23,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         } catch (Exception e) {
             throw e;
         } finally {
+            ProviderManager.active.getAndDecrement();
             ProviderManager.time(offset, System.nanoTime() - begin);
         }
     }
