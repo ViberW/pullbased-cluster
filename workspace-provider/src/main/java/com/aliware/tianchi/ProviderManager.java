@@ -30,8 +30,8 @@ public class ProviderManager {
 
     //////
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(10);
-    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(10);
-    private static final long levelInterval = TimeUnit.MILLISECONDS.toNanos(6);
+    private static final long highLevel = TimeUnit.MILLISECONDS.toNanos(6);
+    private static final long lowLevel = TimeUnit.MILLISECONDS.toNanos(4);
     private static final long windowSize = 3;
     private static final Counter counter = new Counter();
     private static final Counter okCounter = new Counter();
@@ -85,15 +85,16 @@ public class ProviderManager {
             long sum = counter.sum(low, high - 1);
             long r = sum == 0 ? 1 : (timeCounter.sum(low, high - 1) / sum);
             long w;
-            if (r > okInterval || overRatio > 0.1) {
-                long reduce = r > okInterval ? r / okInterval : (long) (overRatio * 10);
+            if (r > highLevel || overRatio > 0.1) {
+                long reduce = r > highLevel ? r / highLevel : (long) (overRatio * 10);
                 w = weight - reduce;
-            } else if (r > levelInterval) {
-                w = weight;
-            } else {
+            } else if (r < lowLevel) {
                 w = weight + 1;
+            } else {
+                w = weight;
             }
             cm = 1;
+            logger.info("WeightTask:{}", w);
             weight = Math.max(1, w);
             clean(high);
         }
@@ -102,9 +103,9 @@ public class ProviderManager {
     public static void time(long duration) {
         long offset = offset();
         counter.add(offset, 1);
-        if (duration < okInterval) {
+        timeCounter.add(offset, duration);
+        if (duration < highLevel) {
             okCounter.add(offset, 1);
-            timeCounter.add(offset, duration);
         }
     }
 
