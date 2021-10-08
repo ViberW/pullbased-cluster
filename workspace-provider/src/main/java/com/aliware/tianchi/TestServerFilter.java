@@ -3,8 +3,6 @@ package com.aliware.tianchi;
 import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
 import org.apache.dubbo.rpc.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * 服务端过滤器
@@ -18,19 +16,19 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         long begin = System.nanoTime();
+        long offset = ProviderManager.offset();
+        ProviderManager.active.getAndIncrement();
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {
             throw e;
         } finally {
-            int count = ProviderManager.active.getAndDecrement();
-            ProviderManager.time(System.nanoTime() - begin, count);
+            ProviderManager.time(offset, System.nanoTime() - begin);
         }
     }
 
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
-        // 获取内存信息样例 --这些信息仅仅在访问时间较长时触发计算, 没必要每次都计算
         ProviderManager.maybeInit(invoker);
         appResponse.setAttachment("w", ProviderManager.weight);
         appResponse.setAttachment("c", ProviderManager.cm);

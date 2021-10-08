@@ -29,12 +29,12 @@ public class ProviderManager {
     private final static Logger logger = LoggerFactory.getLogger(ProviderManager.class);
 
     //////
-    private static final long timeInterval = TimeUnit.SECONDS.toNanos(1);
-    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(20);
-    private static final long windowSize = 1;
+    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(10);
+    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(10);
+    private static final long levelInterval = TimeUnit.MILLISECONDS.toNanos(6);
+    private static final long windowSize = 6;
     private static final Counter counter = new Counter();
     private static final Counter okCounter = new Counter();
-    private static final Counter wCounter = new Counter();
     public static AtomicInteger active = new AtomicInteger(1);
     //////
 
@@ -48,15 +48,15 @@ public class ProviderManager {
                             0, 1000, TimeUnit.MILLISECONDS);
                     //这个单线程处理
                     scheduledExecutor.scheduleWithFixedDelay(new WeightTask(),
-                            200, 200, TimeUnit.MILLISECONDS);
+                            200, 10, TimeUnit.MILLISECONDS);
                     once = false;
                 }
             }
         }
     }
 
-    private static double mr = calculateMemory();
-    private static double cr = calculateCPURatio();
+    private static volatile double mr = calculateMemory();
+    private static volatile double cr = calculateCPURatio();
     static volatile double cm = 0;
 
     private static class SystemTask implements Runnable {
@@ -71,27 +71,28 @@ public class ProviderManager {
             } else {
                 cm = 1;
             }
-            logger.info("SystemTask:{}", cm);
+//            logger.info("SystemTask:{}", cm);
         }
     }
 
     private static class WeightTask implements Runnable {
         @Override
         public void run() {
-            long wp = weight;
             long high = offset();
-            long low = high - windowSize;
-
-            long wCnt = wCounter.sum(low, high);
-            long okCnt = okCounter.sum(low, high);
-            long sum = counter.sum(low, high);
-            long expectW = okCnt == 0 ? wp : wCnt / okCnt;
-            double r = sum == 0 ? 1 : (okCnt * 1.0 / sum);
+            long low = high - 1 - windowSize;
+            int ac = active.get();
+            double overRatio = ac == 0 ? 0 : (Math.max(0, ac - counter.onlySum(high)) * 1.0 / ac);
+            long okCnt = okCounter.sum(low, high - 1);
+            long sum = counter.sum(low, high - 1);
+            long r = sum == 0 ? 1 : (okCnt / sum);
             long w;
-            if (r < 0.8) {
-                w = (long) (expectW == 0 ? wp * 0.8 : Math.min(wp, expectW) * 0.8);
+            if (r > okInterval || overRatio > 0.1) {
+                long reduce = r > okInterval ? r / okInterval : (long) (overRatio * 10);
+                w = weight - reduce;
+            } else if (r > levelInterval) {
+                w = weight;
             } else {
-                w = (wp + expectW) / 2;
+                w = weight + 1;
             }
             cm = 1;
             weight = Math.max(1, w);
@@ -99,13 +100,9 @@ public class ProviderManager {
         }
     }
 
-    public static void time(long duration, int count) {
-        long offset = offset();
+    public static void time(long offset, long duration) {
         counter.add(offset, 1);
-        if (duration < okInterval) {
-            okCounter.add(offset, 1);
-            wCounter.add(offset, count);
-        }
+        okCounter.add(offset, duration);
     }
 
     public static long offset() {
@@ -116,7 +113,6 @@ public class ProviderManager {
         long toKey = high - (windowSize << 1);
         counter.clean(toKey);
         okCounter.clean(toKey);
-        wCounter.clean(toKey);
     }
 
     private static double calculateMemory() {

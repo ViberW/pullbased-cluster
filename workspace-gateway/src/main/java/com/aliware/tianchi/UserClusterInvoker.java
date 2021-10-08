@@ -130,7 +130,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     }
 
     static class OnceCompletableFuture extends CompletableFuture<AppResponse> {
-        CompletableFuture<AppResponse> responseFuture;
+//        CompletableFuture<AppResponse> responseFuture;
         Timeout timeout;
 
         public OnceCompletableFuture(CompletableFuture<AppResponse> responseFuture) {
@@ -141,11 +141,11 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             /*if (null != this.responseFuture && !this.responseFuture.isDone()) {
                 this.responseFuture.cancel(true);
             }*/
-            this.responseFuture = responseFuture;
-            this.responseFuture.whenComplete((appResponse, throwable) -> {
+//            this.responseFuture = responseFuture;
+            responseFuture.whenComplete((appResponse, throwable) -> {
                 if (null != appResponse && !appResponse.hasException()) {
                     OnceCompletableFuture.this.complete(appResponse);
-                    if (null != timeout && timeout.isExpired()) {
+                    if (null != timeout && !timeout.isExpired()) {
                         timeout.cancel();
                     }
                 }

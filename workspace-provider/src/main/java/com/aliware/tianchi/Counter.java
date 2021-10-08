@@ -3,7 +3,6 @@ package com.aliware.tianchi;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.stream.LongStream;
 
 /**
  * @author Viber
@@ -18,6 +17,10 @@ public class Counter {
 
     public void add(long offset, long n) {
         getOrCreate(offset).add(n);
+    }
+
+    public Long onlySum(long offset) {
+        return getOrCreate(offset).sum();
     }
 
     public long sum(long fromOffset, long toOffset) {
