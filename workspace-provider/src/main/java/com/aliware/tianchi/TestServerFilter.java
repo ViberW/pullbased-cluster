@@ -16,14 +16,15 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         long begin = System.nanoTime();
-        ProviderManager.active.getAndIncrement();
+        int b = ProviderManager.active.getAndIncrement();
+        //这里判断了一部分是否可以直接认为失败呢?
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {
             throw e;
         } finally {
-            ProviderManager.active.getAndDecrement();
-            ProviderManager.time(System.nanoTime() - begin);
+            //以平均值可能更好些
+            ProviderManager.time(System.nanoTime() - begin, (ProviderManager.active.getAndDecrement() + b) / 2);
         }
     }
 

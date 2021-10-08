@@ -24,7 +24,7 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         NodeState state = NodeManager.state(invoker);
-        state.setServerActive((Long) appResponse.getObjectAttachment("w"));
+        state.setServerActive((Integer) appResponse.getObjectAttachment("w"));
         state.setCM((Double) appResponse.getObjectAttachment("c"));
         NodeManager.state(invoker).end(appResponse.hasException() &&
                 appResponse.getException() instanceof TimeoutException);

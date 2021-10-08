@@ -14,6 +14,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.lang.Math.exp;
+
 /**
  * @author Viber
  * @version 1.0
@@ -25,17 +27,16 @@ public class ProviderManager {
     private static HardwareAbstractionLayer hal = si.getHardware();
     private static ScheduledExecutorService scheduledExecutor;
     private static volatile boolean once = true;
-    public static volatile long weight = 1;
+    public static volatile int weight = 1;
     private final static Logger logger = LoggerFactory.getLogger(ProviderManager.class);
 
     //////
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(10);
     private static final long okLevel = TimeUnit.MILLISECONDS.toNanos(10);
-    private static final long lowLevel = TimeUnit.MILLISECONDS.toNanos(5);
     private static final long windowSize = 2;
     private static final Counter counter = new Counter();
-    private static final Counter timeCounter = new Counter();
     private static final Counter okCounter = new Counter();
+    private static final Counter okActive = new Counter();
     public static AtomicInteger active = new AtomicInteger(1);
     //////
 
@@ -43,7 +44,7 @@ public class ProviderManager {
         if (once) {
             synchronized (ProviderManager.class) {
                 if (once) {
-                    weight = invoker.getUrl().getParameter(CommonConstants.THREADS_KEY, CommonConstants.DEFAULT_THREADS) / 2;
+                    weight = invoker.getUrl().getParameter(CommonConstants.THREADS_KEY, CommonConstants.DEFAULT_THREADS);
                     scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
                     scheduledExecutor.scheduleWithFixedDelay(new SystemTask(),
                             0, 1000, TimeUnit.MILLISECONDS);
@@ -75,23 +76,22 @@ public class ProviderManager {
         }
     }
 
+    private static final double ALPHA = 1 - exp(-5 / 60.0);
+
     private static class WeightTask implements Runnable {
         @Override
         public void run() {
             long high = offset();
             long low = high - windowSize;
-            int ac = active.get();
             long sum = counter.sum(low, high);
             long ok = okCounter.sum(low, high);
-            double overRatio = ac == 0 || ok > 0.9 * sum ? 0 : (Math.max(0, ac - (ok / windowSize)) * 1.0 / ac);
-            long r = sum == 0 ? 1 : (timeCounter.sum(low, high) / sum);
-            long w;
-            if (r > okLevel || overRatio > 0.1) {
-                w = weight - (r > okLevel ? r / okLevel : (long) (overRatio * 10));
-            } else if (r < lowLevel) {
-                w = weight + 1;
+            double r = sum == 0 ? 0 : (ok * 1.0 / sum);
+            long okCurrent = okActive.sum(low, high);
+            int w;
+            if (r < 0.9) {
+                w = weight - (int) ((1 - r) * 10);
             } else {
-                w = weight;
+                w = (int) (weight + (okCurrent / ok - weight) * ALPHA);
             }
             cm = 1;
             logger.info("WeightTask:{}", w);
@@ -100,12 +100,12 @@ public class ProviderManager {
         }
     }
 
-    public static void time(long duration) {
+    public static void time(long duration, int concurrent) {
         long offset = offset();
         counter.add(offset, 1);
-        timeCounter.add(offset, duration);
         if (duration < okLevel) {
             okCounter.add(offset, 1);
+            okActive.add(offset, concurrent);
         }
     }
 
@@ -116,8 +116,6 @@ public class ProviderManager {
     public static void clean(long high) {
         long toKey = high - (windowSize << 2);
         counter.clean(toKey);
-        timeCounter.clean(toKey);
-        okCounter.clean(toKey);
     }
 
     private static double calculateMemory() {

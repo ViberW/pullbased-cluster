@@ -19,7 +19,6 @@ public class Counter {
         getOrCreate(offset).add(n);
     }
 
-
     public long sum(long fromOffset, long toOffset) {
         return sum(fromOffset, true, toOffset, true);
     }
@@ -30,14 +29,6 @@ public class Counter {
                 .stream()
                 .mapToLong(LongAdder::sum)
                 .sum();
-    }
-
-    public long max(long fromOffset, long toOffset) {
-        return data.subMap(toOffset, true, fromOffset, true)
-                .values()
-                .stream()
-                .mapToLong(LongAdder::sum)
-                .max().orElse(0L);
     }
 
     public void clean(long toOffset) {

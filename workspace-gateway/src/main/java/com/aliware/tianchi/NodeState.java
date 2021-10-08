@@ -18,7 +18,7 @@ import static java.lang.Math.exp;
 public class NodeState {
     private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
     private static final long timeInterval = TimeUnit.SECONDS.toMillis(1);
-    public volatile long serverActive = 1;
+    public volatile int serverActive = 1;
     public volatile double cm = 1;
     public LongAdder failure = new LongAdder();
     public LongAdder total = new LongAdder();
@@ -33,7 +33,7 @@ public class NodeState {
         return (long) (this.serverActive * (1 - failureRatio) * cm);
     }
 
-    public void setServerActive(long w) {
+    public void setServerActive(int w) {
         serverActive = w;
     }
 
