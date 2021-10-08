@@ -16,7 +16,6 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         long begin = System.nanoTime();
-        long offset = ProviderManager.offset();
         ProviderManager.active.getAndIncrement();
         try {
             return invoker.invoke(invocation);
@@ -24,7 +23,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
             throw e;
         } finally {
             ProviderManager.active.getAndDecrement();
-            ProviderManager.time(offset, System.nanoTime() - begin);
+            ProviderManager.time(System.nanoTime() - begin);
         }
     }
 

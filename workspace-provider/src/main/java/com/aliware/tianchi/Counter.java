@@ -19,9 +19,6 @@ public class Counter {
         getOrCreate(offset).add(n);
     }
 
-    public Long onlySum(long offset) {
-        return getOrCreate(offset).sum();
-    }
 
     public long sum(long fromOffset, long toOffset) {
         return sum(fromOffset, true, toOffset, true);

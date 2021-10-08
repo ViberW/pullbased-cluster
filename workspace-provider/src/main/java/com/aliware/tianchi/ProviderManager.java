@@ -32,9 +32,10 @@ public class ProviderManager {
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(10);
     private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(10);
     private static final long levelInterval = TimeUnit.MILLISECONDS.toNanos(6);
-    private static final long windowSize = 6;
+    private static final long windowSize = 3;
     private static final Counter counter = new Counter();
     private static final Counter okCounter = new Counter();
+    private static final Counter timeCounter = new Counter();
     public static AtomicInteger active = new AtomicInteger(1);
     //////
 
@@ -71,7 +72,6 @@ public class ProviderManager {
             } else {
                 cm = 1;
             }
-//            logger.info("SystemTask:{}", cm);
         }
     }
 
@@ -81,10 +81,9 @@ public class ProviderManager {
             long high = offset();
             long low = high - 1 - windowSize;
             int ac = active.get();
-            double overRatio = ac == 0 ? 0 : (Math.max(0, ac - counter.onlySum(high)) * 1.0 / ac);
-            long okCnt = okCounter.sum(low, high - 1);
+            double overRatio = ac == 0 ? 0 : (Math.max(0, ac - okCounter.sum(high - 1, high)) * 1.0 / ac);
             long sum = counter.sum(low, high - 1);
-            long r = sum == 0 ? 1 : (okCnt / sum);
+            long r = sum == 0 ? 1 : (timeCounter.sum(low, high - 1) / sum);
             long w;
             if (r > okInterval || overRatio > 0.1) {
                 long reduce = r > okInterval ? r / okInterval : (long) (overRatio * 10);
@@ -94,14 +93,19 @@ public class ProviderManager {
             } else {
                 w = weight + 1;
             }
+            cm = 1;
             weight = Math.max(1, w);
-            clean(high); //需要计算出一个可靠的运行量
+            clean(high);
         }
     }
 
-    public static void time(long offset, long duration) {
+    public static void time(long duration) {
+        long offset = offset();
         counter.add(offset, 1);
-        okCounter.add(offset, duration);
+        if (duration < okInterval) {
+            okCounter.add(offset, 1);
+            timeCounter.add(offset, duration);
+        }
     }
 
     public static long offset() {
@@ -109,7 +113,7 @@ public class ProviderManager {
     }
 
     public static void clean(long high) {
-        long toKey = high - (windowSize << 1);
+        long toKey = high - (windowSize << 2);
         counter.clean(toKey);
         okCounter.clean(toKey);
     }
@@ -117,7 +121,7 @@ public class ProviderManager {
     private static double calculateMemory() {
         GlobalMemory memory = hal.getMemory();
         long total = memory.getTotal();
-        return total - memory.getAvailable() * 1.0 / total;
+        return (total - memory.getAvailable()) * 1.0 / total;
     }
 
     private static double calculateCPURatio() {
