@@ -88,8 +88,6 @@ public class ProviderManager {
                 w = weight - 1;
             } else if (range(okCurrent, weight)) {
                 w = (int) (weight + (okCurrent - weight) * 0.5);
-            } else if (sum != 0 && r == 1) {
-                w = weight + 1;
             } else {
                 w = weight;
             }

@@ -26,7 +26,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
             ProviderManager.active.getAndDecrement();
             long duration = System.nanoTime() - begin;
             ProviderManager.time(duration, b);
-            RpcContext.getServerAttachment().setObjectAttachment("d", duration);
+//            RpcContext.getServerAttachment().setObjectAttachment("d", duration);
         }
     }
 
@@ -35,7 +35,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         ProviderManager.maybeInit(invoker);
         appResponse.setAttachment("w", ProviderManager.weight);
         appResponse.setAttachment("c", ProviderManager.cm);
-        appResponse.setAttachment("d", RpcContext.getServerAttachment().getObjectAttachment("d"));
+//        appResponse.setAttachment("d", RpcContext.getServerAttachment().getObjectAttachment("d"));
     }
 
     @Override

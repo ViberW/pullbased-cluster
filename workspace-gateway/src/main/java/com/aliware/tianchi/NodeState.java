@@ -23,9 +23,9 @@ public class NodeState {
     //    private static final double ALPHA = 1 - exp(-1 / 60.0);
     public volatile double failureRatio = 0;
     private final AtomicLong lastTime = new AtomicLong(System.currentTimeMillis());
-    public volatile long layTime = 30;
-    public LongAdder lays = new LongAdder();
-    private static long oneMil = TimeUnit.MILLISECONDS.toNanos(1);
+//    public volatile long layTime = 30;
+//    public LongAdder lays = new LongAdder();
+//    private static long oneMil = TimeUnit.MILLISECONDS.toNanos(1);
 
     public NodeState() {
     }
@@ -42,14 +42,14 @@ public class NodeState {
         cm = c;
     }
 
-    public void end(boolean error, long d) {
+    public void end(boolean error/*, long d*/) {
         total.add(1);
         if (error) {
             failure.add(1);
         }
-        if (d > 0) {
-            lays.add(d);
-        }
+//        if (d > 0) {
+//            lays.add(d);
+//        }
         calculateFailure();
     }
 
@@ -60,16 +60,16 @@ public class NodeState {
             if (lastTime.compareAndSet(l, l + timeInterval)) {
                 long c = total.sumThenReset();
                 long f = failure.sumThenReset();
-                long lay = lays.sumThenReset();
+//                long lay = lays.sumThenReset();
                 if (c != 0) {
                     int instantRate = (int) (f / c);
                     double fr = failureRatio;
                     failureRatio = Math.max(0, fr + (int) (0.5 * (instantRate - fr)));
 
-                    long curLay = lay / (c * oneMil);
-                    long lastLayTime = layTime;
-                    layTime = Math.min(Math.max(0, lastLayTime + (long) (0.5 * (curLay - lastLayTime))), 60) + 10;
-                    logger.info("calculateLayTime:{}-{}", layTime, curLay);
+//                    long curLay = lay / (c * oneMil);
+//                    long lastLayTime = layTime;
+//                    layTime = Math.min(Math.max(0, lastLayTime + (long) (0.5 * (curLay - lastLayTime))), 60) + 10;
+//                    logger.info("calculateLayTime:{}-{}", layTime, curLay);
                 }
             }
         }

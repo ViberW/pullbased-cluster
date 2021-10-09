@@ -49,7 +49,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             AsyncRpcResult rpcResult = new AsyncRpcResult(onceCompletableFuture, invocation);
             RpcContext.getServiceContext().setFuture(new FutureAdapter<>(onceCompletableFuture));
             onceCompletableFuture.timeout = checker.newTimeout(new FutureTimeoutTask(loadbalance, invocation, rpcResult, onceCompletableFuture, invoker, invokers),
-                    NodeManager.state(invoker).layTime, TimeUnit.MILLISECONDS);
+                    delay, TimeUnit.MILLISECONDS);
             return rpcResult;
         }
         return result;
@@ -60,7 +60,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             return invoker.invoke(invocation);
         } catch (RpcException e) {
             if (e.isNetwork()) {
-                NodeManager.state(invoker).end(true, 0);
+                NodeManager.state(invoker).end(true);
                 if (invokers.size() <= 1) {
                     throw e;
                 }
@@ -126,7 +126,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             //同样将结果放置到这里
             if (onceCompletableFuture.replace(((AsyncRpcResult) result).getResponseFuture())) {
                 onceCompletableFuture.timeout = timeout.timer().newTimeout(timeout.task(),
-                        NodeManager.state(invoker).layTime, TimeUnit.MILLISECONDS);
+                        delay, TimeUnit.MILLISECONDS);
             }
         }
     }
