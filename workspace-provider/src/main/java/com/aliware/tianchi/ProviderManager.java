@@ -29,9 +29,9 @@ public class ProviderManager {
     private final static Logger logger = LoggerFactory.getLogger(ProviderManager.class);
 
     //////
-    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(10);
+    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(5);
     private static final long okLevel = TimeUnit.MILLISECONDS.toNanos(10);
-    private static final long windowSize = 1;
+    private static final long windowSize = 2;
     private static final Counter counter = new Counter();
     private static final Counter okCounter = new Counter();
     private static final Counter okActive = new Counter();
@@ -85,8 +85,8 @@ public class ProviderManager {
             int okCurrent = ok == 0 ? weight : (int) (okActive.sum(low, high) / ok);
             int w;
             if (r < 0.9) {
-                w = weight - 1;
-            } else if (range(okCurrent, weight)) {
+                w = (int) (weight / (2 - r));
+            } else if (okCurrent > weight / 2) {
                 w = (int) (weight + (okCurrent - weight) * 0.5);
             } else {
                 w = weight;
@@ -97,10 +97,6 @@ public class ProviderManager {
             clean(high);
 
         }
-    }
-
-    public static boolean range(int a, int b) {
-        return Math.abs(a - b) < 10;
     }
 
     public static void time(long duration, int concurrent) {

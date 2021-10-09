@@ -119,7 +119,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             invokers.remove(invoker);
             if (invokers.isEmpty()) {
                 this.invokers = new ArrayList<>(origin);
-                return;
             }
             invoker = select(loadbalance, invocation, invokers, null);
             Result result = doInvoked(invocation, invokers, loadbalance, invoker);
