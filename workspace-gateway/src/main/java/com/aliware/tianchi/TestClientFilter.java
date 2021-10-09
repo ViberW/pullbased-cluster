@@ -15,19 +15,22 @@ import org.slf4j.LoggerFactory;
  */
 @Activate(group = CommonConstants.CONSUMER)
 public class TestClientFilter implements Filter, BaseFilter.Listener {
+    public static final String TIME_BEGIN = "_time_begin";
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        invocation.setObjectAttachment(TIME_BEGIN, System.nanoTime());
         return invoker.invoke(invocation);
     }
 
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
+        long duration = System.nanoTime() - (long) invocation.getObjectAttachment(TIME_BEGIN);
         NodeState state = NodeManager.state(invoker);
         state.setServerActive((Integer) appResponse.getObjectAttachment("w"));
         state.setCM((Double) appResponse.getObjectAttachment("c"));
         NodeManager.state(invoker).end(appResponse.hasException() &&
-                appResponse.getException() instanceof TimeoutException);
+                appResponse.getException() instanceof TimeoutException, duration - (Long) appResponse.getObjectAttachment("d"));
     }
 
     @Override

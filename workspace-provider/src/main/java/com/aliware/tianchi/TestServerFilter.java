@@ -23,8 +23,10 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         } catch (Exception e) {
             throw e;
         } finally {
-            //以平均值可能更好些
-            ProviderManager.time(System.nanoTime() - begin, (ProviderManager.active.getAndDecrement() + b) / 2);
+            ProviderManager.active.getAndDecrement();
+            long duration = System.nanoTime() - begin;
+            ProviderManager.time(duration, b);
+            RpcContext.getServerAttachment().setObjectAttachment("d", duration);
         }
     }
 
@@ -33,6 +35,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         ProviderManager.maybeInit(invoker);
         appResponse.setAttachment("w", ProviderManager.weight);
         appResponse.setAttachment("c", ProviderManager.cm);
+        appResponse.setAttachment("d", RpcContext.getServerAttachment().getObjectAttachment("d"));
     }
 
     @Override

@@ -14,8 +14,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static java.lang.Math.exp;
-
 /**
  * @author Viber
  * @version 1.0
@@ -33,7 +31,7 @@ public class ProviderManager {
     //////
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(10);
     private static final long okLevel = TimeUnit.MILLISECONDS.toNanos(10);
-    private static final long windowSize = 2;
+    private static final long windowSize = 1;
     private static final Counter counter = new Counter();
     private static final Counter okCounter = new Counter();
     private static final Counter okActive = new Counter();
@@ -76,8 +74,6 @@ public class ProviderManager {
         }
     }
 
-    private static final double ALPHA = 1 - exp(-5 / 60.0);
-
     private static class WeightTask implements Runnable {
         @Override
         public void run() {
@@ -85,19 +81,28 @@ public class ProviderManager {
             long low = high - windowSize;
             long sum = counter.sum(low, high);
             long ok = okCounter.sum(low, high);
-            double r = sum == 0 ? 0 : (ok * 1.0 / sum);
-            long okCurrent = okActive.sum(low, high);
+            double r = sum == 0 ? 1 : (ok * 1.0 / sum);
+            int okCurrent = ok == 0 ? weight : (int) (okActive.sum(low, high) / ok);
             int w;
             if (r < 0.9) {
-                w = weight - (int) ((1 - r) * 10);
+                w = weight - 1;
+            } else if (range(okCurrent, weight)) {
+                w = (int) (weight + (okCurrent - weight) * 0.5);
+            } else if (sum != 0 && r == 1) {
+                w = weight + 1;
             } else {
-                w = (int) (weight + (okCurrent / ok - weight) * ALPHA);
+                w = weight;
             }
             cm = 1;
             logger.info("WeightTask:{}", w);
             weight = Math.max(1, w);
             clean(high);
+
         }
+    }
+
+    public static boolean range(int a, int b) {
+        return Math.abs(a - b) < 10;
     }
 
     public static void time(long duration, int concurrent) {
@@ -114,7 +119,7 @@ public class ProviderManager {
     }
 
     public static void clean(long high) {
-        long toKey = high - (windowSize << 2);
+        long toKey = high - (windowSize << 1);
         counter.clean(toKey);
     }
 
