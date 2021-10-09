@@ -118,8 +118,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             }
             invokers.remove(invoker);
             if (invokers.isEmpty()) {
-//                this.invokers = new ArrayList<>(origin);
-                onceCompletableFuture.ending = true;
+                this.invokers = new ArrayList<>(origin);
                 return;
             }
             invoker = select(loadbalance, invocation, invokers, null);
@@ -135,7 +134,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     static class OnceCompletableFuture extends CompletableFuture<AppResponse> {
         //        CompletableFuture<AppResponse> responseFuture;
         Timeout timeout;
-        volatile boolean ending = false;
 
         public OnceCompletableFuture(CompletableFuture<AppResponse> responseFuture) {
             register(responseFuture);
@@ -147,7 +145,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             }*/
 //            this.responseFuture = responseFuture;
             responseFuture.whenComplete((appResponse, throwable) -> {
-                if ((null != appResponse && !appResponse.hasException()) || ending) {
+                if (null != appResponse && !appResponse.hasException()) {
                     OnceCompletableFuture.this.complete(appResponse);
                     if (null != timeout && !timeout.isExpired()) {
                         timeout.cancel();
