@@ -18,6 +18,7 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        NodeManager.state(invoker).active.getAndIncrement();
         invocation.setObjectAttachment(BEGIN, System.nanoTime());
         return invoker.invoke(invocation);
     }
@@ -26,9 +27,14 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         long duration = System.nanoTime() - (long) invocation.getObjectAttachment(BEGIN);
         NodeState state = NodeManager.state(invoker);
-        Object value = appResponse.getObjectAttachment("w");
+        state.active.getAndDecrement();
+        Object value = appResponse.getObjectAttachment("t");
         if (null != value) {
             state.setAvgTime((Integer) value);
+        }
+        value = appResponse.getObjectAttachment("w");
+        if (null != value) {
+            state.setWeight((Integer) value);
         }
         value = appResponse.getObjectAttachment("d");
         state.end(null != value ? Math.max(0, duration - (long) value) : state.timeout + 1,

@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static java.lang.Math.exp;
 
@@ -19,6 +20,7 @@ public class NodeState {
     private static final long timeInterval = TimeUnit.SECONDS.toMillis(1);
     private static final long oneMill = TimeUnit.MILLISECONDS.toNanos(1);
     public volatile int avgTime = 1;
+    public volatile int weight = 200;
     private final Counter totalCounter = new Counter();
     private final Counter layCounter = new Counter();
     private final Counter timeoutCounter = new Counter();
@@ -26,10 +28,9 @@ public class NodeState {
     public volatile double timeoutRatio = 0L;
     private static final double ALPHA = 1 - exp(-1 / 60.0);//来自框架metrics的计算系数
     private final int windowSize = 5;
-    ScheduledExecutorService scheduledExecutor;
+    public AtomicLong active = new AtomicLong(1);
 
     public NodeState(ScheduledExecutorService scheduledExecutor) {
-        this.scheduledExecutor = scheduledExecutor;
         scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
             @Override
             public void run() {
@@ -42,10 +43,10 @@ public class NodeState {
                     newTimeout = (long) (timeout + (newTimeout - timeout) * ALPHA);
                     timeout = Math.max(newTimeout, 20L);
                     logger.info("NodeState.timeout:{}", timeout);
-
                     long r = timeoutCounter.sum(low, high) / sum;
                     r = (long) (timeoutRatio + (r - timeoutRatio) * ALPHA);
                     timeoutRatio = Math.max(0, r);
+                    logger.info("NodeState.timeoutRatio:{}", timeoutRatio);
                 }
                 clean(high);
             }
@@ -53,12 +54,19 @@ public class NodeState {
     }
 
     public int getWeight() {
-        return 500 / this.avgTime;
+        //乘以100位是为了让系数更加分明点  * 10
+        return (int) (Math.max(1, (weight - active.get())) * 100 * (1 - timeoutRatio) * Math.max(1, 500 / this.avgTime));
     }
 
-    public void setAvgTime(int w) {
-        if (avgTime != w) {
-            avgTime = w;
+    public void setAvgTime(int at) {
+        if (avgTime != at) {
+            avgTime = at;
+        }
+    }
+
+    public void setWeight(int w) {
+        if (weight != w) {
+            weight = w;
         }
     }
 

@@ -1,6 +1,5 @@
 package com.aliware.tianchi;
 
-import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.rpc.Invoker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,9 +11,7 @@ import oshi.hardware.HardwareAbstractionLayer;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static java.lang.Math.exp;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author Viber
@@ -28,6 +25,7 @@ public class ProviderManager {
     private static ScheduledExecutorService scheduledExecutor;
     private static volatile boolean once = true;
     public static volatile int responseTime = 1;
+    public static volatile int weight = 200;
     private final static Logger logger = LoggerFactory.getLogger(ProviderManager.class);
 
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(10);
@@ -35,6 +33,8 @@ public class ProviderManager {
     private static final long windowSize = 6;
     private static final Counter counter = new Counter();
     private static final Counter timeCounter = new Counter();
+    private static final Counter concurrentCounter = new Counter();
+    public static AtomicLong active = new AtomicLong(1); //帮助计算weight, 机器能够容忍的合适的weight
 
     public static void maybeInit(Invoker<?> invoker) {
         if (once) {
@@ -59,17 +59,23 @@ public class ProviderManager {
             if (sum > 0) {
                 long time = timeCounter.sum(low, high);
                 int r = (int) ((time / sum) / oneMill);
-                logger.info("WeightTask:{}", r);
+                logger.info("WeightTask.avgTime:{}", r);
                 responseTime = Math.max(1, r);
+
+
+                logger.info("WeightTask.weight:{}", weight);
             }
             clean(high);
         }
     }
 
-    public static void time(long duration) {
+    public static void time(long duration, long concurrent) {
         long offset = ProviderManager.offset();
         counter.add(offset, 1);
         timeCounter.add(offset, duration);
+        /*if (duration < timeInterval) {
+            concurrentCounter.add(offset, concurrent);
+        }*/
     }
 
     public static long offset() {
@@ -80,6 +86,7 @@ public class ProviderManager {
         long toKey = high - (windowSize << 1);
         counter.clean(toKey);
         timeCounter.clean(toKey);
+        concurrentCounter.clean(toKey);
     }
 
     private static double calculateMemory() {
