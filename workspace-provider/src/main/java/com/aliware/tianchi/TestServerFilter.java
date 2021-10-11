@@ -13,29 +13,28 @@ import org.apache.dubbo.rpc.*;
 @Activate(group = CommonConstants.PROVIDER)
 public class TestServerFilter implements Filter, BaseFilter.Listener {
 
+    private static final String BEGIN = "_provider_begin";
+
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         long begin = System.nanoTime();
-        int b = ProviderManager.active.getAndIncrement();
-        //这里判断了一部分是否可以直接认为失败呢?
+        RpcContext.getServerAttachment().setObjectAttachment(BEGIN, begin);
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {
             throw e;
-        } finally {
-            ProviderManager.active.getAndDecrement();
-            long duration = System.nanoTime() - begin;
-            ProviderManager.time(duration, b);
-//            RpcContext.getServerAttachment().setObjectAttachment("d", duration);
         }
     }
 
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
+        long duration = System.nanoTime() - (long) RpcContext.getServerAttachment().getObjectAttachment(BEGIN);
+        RpcContext.getServerAttachment().getObjectAttachment("d");
+        ProviderManager.time(duration);
         ProviderManager.maybeInit(invoker);
-        appResponse.setAttachment("w", ProviderManager.weight);
-        appResponse.setAttachment("c", ProviderManager.cm);
-//        appResponse.setAttachment("d", RpcContext.getServerAttachment().getObjectAttachment("d"));
+        appResponse.setObjectAttachment("w", ProviderManager.responseTime);
+        appResponse.setObjectAttachment("d", duration);
+
     }
 
     @Override

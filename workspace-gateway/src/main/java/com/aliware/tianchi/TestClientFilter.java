@@ -2,10 +2,7 @@ package com.aliware.tianchi;
 
 import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
-import org.apache.dubbo.remoting.TimeoutException;
 import org.apache.dubbo.rpc.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * 客户端过滤器（选址后）
@@ -15,22 +12,27 @@ import org.slf4j.LoggerFactory;
  */
 @Activate(group = CommonConstants.CONSUMER)
 public class TestClientFilter implements Filter, BaseFilter.Listener {
-//    public static final String TIME_BEGIN = "_time_begin";
+
+    private static final String BEGIN = "_time_begin";
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-//        invocation.setObjectAttachment(TIME_BEGIN, System.nanoTime());
+        RpcContext.getClientAttachment().setObjectAttachment(CommonConstants.TIMEOUT_KEY,
+                NodeManager.state(invoker).timeout);
+        invocation.setObjectAttachment(BEGIN, System.nanoTime());
         return invoker.invoke(invocation);
     }
 
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
-//        long duration = System.nanoTime() - (long) invocation.getObjectAttachment(TIME_BEGIN);
+        long duration = System.nanoTime() - (long) invocation.getObjectAttachment(BEGIN);
         NodeState state = NodeManager.state(invoker);
-        state.setServerActive((Integer) appResponse.getObjectAttachment("w"));
-        state.setCM((Double) appResponse.getObjectAttachment("c"));
-        NodeManager.state(invoker).end(appResponse.hasException() &&
-                appResponse.getException() instanceof TimeoutException/*, duration - (Long) appResponse.getObjectAttachment("d")*/);
+        Object value = appResponse.getObjectAttachment("w");
+        if (null != value) {
+            state.setServerActive((Integer) value);
+        }
+        value = appResponse.getObjectAttachment("d");
+        state.end(null != value ? Math.max(0, duration - (long) value) : state.timeout + 1);
     }
 
     @Override

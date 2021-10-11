@@ -3,9 +3,10 @@ package com.aliware.tianchi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.LongAdder;
+
+import static java.lang.Math.exp;
 
 /**
  * @author Viber
@@ -16,64 +17,59 @@ import java.util.concurrent.atomic.LongAdder;
 public class NodeState {
     private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
     private static final long timeInterval = TimeUnit.SECONDS.toMillis(1);
+    private static final long oneMill = TimeUnit.MILLISECONDS.toNanos(1);
     public volatile int serverActive = 1;
-    public volatile double cm = 1;
-    public LongAdder failure = new LongAdder();
-    public LongAdder total = new LongAdder();
-    //    private static final double ALPHA = 1 - exp(-1 / 60.0);
-    public volatile double failureRatio = 0;
-    private final AtomicLong lastTime = new AtomicLong(System.currentTimeMillis());
-//    public volatile long layTime = 30;
-//    public LongAdder lays = new LongAdder();
-//    private static long oneMil = TimeUnit.MILLISECONDS.toNanos(1);
+    private final Counter totalCounter = new Counter();
+    private final Counter layCounter = new Counter();
+    public volatile long timeout = 40L;
+    private static final double ALPHA = 1 - exp(-1 / 60.0);//来自框架metrics的计算系数
+    private final int windowSize = 5;
+    ScheduledExecutorService scheduledExecutor;
 
-    public NodeState() {
+    public NodeState(ScheduledExecutorService scheduledExecutor) {
+        this.scheduledExecutor = scheduledExecutor;
+        scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
+            @Override
+            public void run() {
+                //计算当前一段时间内的 最近5秒的平均延迟
+                long high = offset();
+                long low = high - windowSize;
+                long sum = totalCounter.sum(low, high);
+                if (sum > 0) {
+                    long newTimeout = 10 + (layCounter.sum(low, high) / sum);
+                    newTimeout = (long) (timeout + (newTimeout - timeout) * ALPHA);
+                    timeout = Math.max(newTimeout, 20L);
+                    logger.info("NodeState.timeout:{}", timeout);
+                }
+                clean(high);
+            }
+        }, 5, 1, TimeUnit.SECONDS);
     }
 
     public long getWeight() {
-        return (long) (this.serverActive * (1 - failureRatio) * cm);
+        return 500 / this.serverActive;
     }
 
     public void setServerActive(int w) {
-        serverActive = w;
-    }
-
-    public void setCM(double c) {
-        cm = c;
-    }
-
-    public void end(boolean error/*, long d*/) {
-        total.add(1);
-        if (error) {
-            failure.add(1);
-        }
-//        if (d > 0) {
-//            lays.add(d);
-//        }
-        calculateFailure();
-    }
-
-
-    public void calculateFailure() {
-        long l = lastTime.get();
-        if (System.currentTimeMillis() >= l) {
-            if (lastTime.compareAndSet(l, l + timeInterval)) {
-                long c = total.sumThenReset();
-                long f = failure.sumThenReset();
-//                long lay = lays.sumThenReset();
-                if (c != 0) {
-                    int instantRate = (int) (f / c);
-                    double fr = failureRatio;
-                    failureRatio = Math.max(0, fr + (int) (0.5 * (instantRate - fr)));
-
-//                    long curLay = lay / (c * oneMil);
-//                    long lastLayTime = layTime;
-//                    layTime = Math.min(Math.max(0, lastLayTime + (long) (0.5 * (curLay - lastLayTime))), 60) + 10;
-//                    logger.info("calculateLayTime:{}-{}", layTime, curLay);
-                }
-            }
+        if (serverActive != w) {
+            serverActive = w;
         }
     }
 
+    public void end(long duration) {
+        long offset = offset();
+        totalCounter.add(offset, 1);
+        layCounter.add(offset, duration / oneMill);
+    }
+
+    public long offset() {
+        return System.currentTimeMillis() / timeInterval;
+    }
+
+    public void clean(long high) {
+        long toKey = high - (windowSize << 1);
+        totalCounter.clean(toKey);
+        layCounter.clean(toKey);
+    }
 
 }
