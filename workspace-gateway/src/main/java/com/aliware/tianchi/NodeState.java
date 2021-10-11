@@ -18,10 +18,12 @@ public class NodeState {
     private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
     private static final long timeInterval = TimeUnit.SECONDS.toMillis(1);
     private static final long oneMill = TimeUnit.MILLISECONDS.toNanos(1);
-    public volatile int serverActive = 1;
+    public volatile int avgTime = 1;
     private final Counter totalCounter = new Counter();
     private final Counter layCounter = new Counter();
+    private final Counter timeoutCounter = new Counter();
     public volatile long timeout = 40L;
+    public volatile double timeoutRatio = 0L;
     private static final double ALPHA = 1 - exp(-1 / 60.0);//来自框架metrics的计算系数
     private final int windowSize = 5;
     ScheduledExecutorService scheduledExecutor;
@@ -36,30 +38,37 @@ public class NodeState {
                 long low = high - windowSize;
                 long sum = totalCounter.sum(low, high);
                 if (sum > 0) {
-                    long newTimeout = 10 + (layCounter.sum(low, high) / sum);
+                    long newTimeout = 8 + (layCounter.sum(low, high) / sum);
                     newTimeout = (long) (timeout + (newTimeout - timeout) * ALPHA);
                     timeout = Math.max(newTimeout, 20L);
                     logger.info("NodeState.timeout:{}", timeout);
+
+                    long r = timeoutCounter.sum(low, high) / sum;
+                    r = (long) (timeoutRatio + (r - timeoutRatio) * ALPHA);
+                    timeoutRatio = Math.max(0, r);
                 }
                 clean(high);
             }
         }, 5, 1, TimeUnit.SECONDS);
     }
 
-    public long getWeight() {
-        return 500 / this.serverActive;
+    public int getWeight() {
+        return 500 / this.avgTime;
     }
 
-    public void setServerActive(int w) {
-        if (serverActive != w) {
-            serverActive = w;
+    public void setAvgTime(int w) {
+        if (avgTime != w) {
+            avgTime = w;
         }
     }
 
-    public void end(long duration) {
+    public void end(long duration, boolean timeout) {
         long offset = offset();
         totalCounter.add(offset, 1);
         layCounter.add(offset, duration / oneMill);
+        if (timeout) {
+            timeoutCounter.add(offset, 1);
+        }
     }
 
     public long offset() {
@@ -70,6 +79,7 @@ public class NodeState {
         long toKey = high - (windowSize << 1);
         totalCounter.clean(toKey);
         layCounter.clean(toKey);
+        timeoutCounter.clean(toKey);
     }
 
 }

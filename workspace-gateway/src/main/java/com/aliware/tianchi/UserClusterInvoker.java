@@ -1,6 +1,5 @@
 package com.aliware.tianchi;
 
-import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.timer.HashedWheelTimer;
 import org.apache.dubbo.common.timer.Timeout;
 import org.apache.dubbo.common.timer.Timer;
@@ -15,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -46,16 +46,16 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         Invoker<T> invoker = this.select(loadbalance, invocation, invokers, null);
         Result result = doInvoked(invocation, invokers, loadbalance, invoker);
         if (result instanceof AsyncRpcResult) {
-           /* OnceCompletableFuture onceCompletableFuture = new OnceCompletableFuture(((AsyncRpcResult) result).getResponseFuture());
+            OnceCompletableFuture onceCompletableFuture = new OnceCompletableFuture(((AsyncRpcResult) result).getResponseFuture());
             AsyncRpcResult rpcResult = new AsyncRpcResult(onceCompletableFuture, invocation);
             RpcContext.getServiceContext().setFuture(new FutureAdapter<>(onceCompletableFuture));
             onceCompletableFuture.timeout = checker.newTimeout(new FutureTimeoutTask(loadbalance, invocation, rpcResult, onceCompletableFuture, invoker, invokers),
-                    NodeManager.state(invoker).timeout, TimeUnit.MILLISECONDS);*/
+                    NodeManager.state(invoker).timeout, TimeUnit.MILLISECONDS);
 
-            WaitCompletableFuture future = new WaitCompletableFuture(loadbalance, invocation, invoker, invokers);
+         /*   WaitCompletableFuture future = new WaitCompletableFuture(loadbalance, invocation, invoker, invokers);
             future.register(((AsyncRpcResult) result).getResponseFuture());
             AsyncRpcResult rpcResult = new AsyncRpcResult(future, invocation);
-            RpcContext.getServiceContext().setFuture(new FutureAdapter<>(future));
+            RpcContext.getServiceContext().setFuture(new FutureAdapter<>(future));*/
             return rpcResult;
         }
         return result;
@@ -142,6 +142,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
     static class OnceCompletableFuture extends CompletableFuture<AppResponse> {
         Timeout timeout;
+        LinkedList<CompletableFuture<AppResponse>> futures = new LinkedList<>();
 
         public OnceCompletableFuture(CompletableFuture<AppResponse> responseFuture) {
             register(responseFuture);
@@ -154,8 +155,16 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     if (null != timeout && !timeout.isExpired()) {
                         timeout.cancel();
                     }
+                    for (CompletableFuture<AppResponse> future : futures) {
+                        if (future.isDone()) {
+                            responseFuture.cancel(true);
+                        }
+                    }
                 }
             });
+            if (!this.isDone()) {
+                futures.add(responseFuture);
+            }
         }
 
         public boolean replace(CompletableFuture<AppResponse> responseFuture) {

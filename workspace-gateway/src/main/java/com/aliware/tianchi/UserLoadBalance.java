@@ -23,19 +23,20 @@ public class UserLoadBalance implements LoadBalance {
 
     @Override
     public <T> Invoker<T> select(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
-        long[] serviceWeight = new long[invokers.size()];
+        int size = invokers.size();
+        int[] serviceWeight = new int[size];
         long totalWeight = 0;
-        long weight;
-        for (int index = 0, size = invokers.size(); index < size; ++index) {
+        int weight;
+        for (int index = 0; index < size; ++index) {
             Invoker<T> invoker = invokers.get(index);
-            //需要乘以成功的平均值
-            weight = NodeManager.state(invoker).getWeight();
+            NodeState state = NodeManager.state(invoker);
+            weight = (int) ((1 - state.timeoutRatio) * 10 * state.getWeight());
             serviceWeight[index] = weight;
             totalWeight += weight;
         }
         long expect = ThreadLocalRandom.current().nextLong(totalWeight);
         logger.info("totalweight:{}, expect:{}, serviceWeight:{}", totalWeight, expect, Arrays.toString(serviceWeight));
-        for (int i = 0, size = invokers.size(); i < size; ++i) {
+        for (int i = 0; i < size; ++i) {
             expect -= serviceWeight[i];
             if (expect < 0) {
                 return invokers.get(i);

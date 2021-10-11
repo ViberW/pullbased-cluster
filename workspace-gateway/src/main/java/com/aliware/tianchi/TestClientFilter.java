@@ -2,6 +2,7 @@ package com.aliware.tianchi;
 
 import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
+import org.apache.dubbo.remoting.TimeoutException;
 import org.apache.dubbo.rpc.*;
 
 /**
@@ -17,8 +18,6 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        RpcContext.getClientAttachment().setObjectAttachment(CommonConstants.TIMEOUT_KEY,
-                NodeManager.state(invoker).timeout);
         invocation.setObjectAttachment(BEGIN, System.nanoTime());
         return invoker.invoke(invocation);
     }
@@ -29,10 +28,11 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         NodeState state = NodeManager.state(invoker);
         Object value = appResponse.getObjectAttachment("w");
         if (null != value) {
-            state.setServerActive((Integer) value);
+            state.setAvgTime((Integer) value);
         }
         value = appResponse.getObjectAttachment("d");
-        state.end(null != value ? Math.max(0, duration - (long) value) : state.timeout + 1);
+        state.end(null != value ? Math.max(0, duration - (long) value) : state.timeout + 1,
+                appResponse.hasException() && appResponse.getException() instanceof TimeoutException);
     }
 
     @Override
