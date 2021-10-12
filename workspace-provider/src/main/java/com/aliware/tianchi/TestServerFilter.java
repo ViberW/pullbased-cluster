@@ -4,8 +4,6 @@ import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
 import org.apache.dubbo.rpc.*;
 
-import java.util.concurrent.ThreadLocalRandom;
-
 /**
  * 服务端过滤器
  * 可选接口
@@ -21,19 +19,9 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         long begin = System.nanoTime();
-        RpcContext.getServerAttachment().setObjectAttachment(BEGIN, begin);
-        long concurrent = ProviderManager.active.getAndIncrement();
-        invocation.setObjectAttachment(ACTIVE, concurrent);
+        invocation.setObjectAttachment(BEGIN, begin);
+        invocation.setObjectAttachment(ACTIVE, ProviderManager.active.getAndIncrement());
         try {
-            if (concurrent > ProviderManager.weight) {
-                double r = ThreadLocalRandom.current().nextDouble(1);
-                if (r > ProviderManager.okRatio) {
-                    throw new RpcException(RpcException.LIMIT_EXCEEDED_EXCEPTION,
-                            "Failed to invoke method " + invocation.getMethodName() + " in provider " +
-                                    invoker.getUrl() + ", cause: The service using threads greater" +
-                                    " than <dubbo:service executes=\"" + ProviderManager.weight + "\" /> limited.");
-                }
-            }
             return invoker.invoke(invocation);
         } catch (Exception e) {
             throw e;
@@ -44,16 +32,14 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         ProviderManager.maybeInit(invoker);
         ProviderManager.active.getAndDecrement();
-        if (!appResponse.hasException()) {
-            long duration = System.nanoTime() - (long) RpcContext.getServerAttachment().getObjectAttachment(BEGIN);
-            ProviderManager.time(duration, (long) invocation.getObjectAttachment(ACTIVE));
-            appResponse.setObjectAttachment("w", ProviderManager.weight);
-            appResponse.setObjectAttachment("d", duration);
-        }
+        long duration = System.nanoTime() - (long) invocation.getObjectAttachment(BEGIN);
+        ProviderManager.time(duration, (long) invocation.getObjectAttachment(ACTIVE));
+        appResponse.setObjectAttachment("w", ProviderManager.weight);
+        appResponse.setObjectAttachment("d", duration);
     }
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
-        t.printStackTrace();
+        ProviderManager.active.getAndDecrement();
     }
 }

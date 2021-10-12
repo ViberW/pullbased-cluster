@@ -44,10 +44,11 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     @Override
     protected Result doInvoke(Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
         //
+        RpcContext.getClientAttachment().setObjectAttachment(NodeManager.DOUBLE_FLAG, true);
         Invoker<T> invoker = this.select(loadbalance, invocation, invokers, null);
         Result result = doInvoked(invocation, invokers, loadbalance, invoker);
         if (result instanceof AsyncRpcResult) {
-            OnceCompletableFuture onceCompletableFuture = new OnceCompletableFuture(((AsyncRpcResult) result), invokers.size());
+            OnceCompletableFuture onceCompletableFuture = new OnceCompletableFuture(((AsyncRpcResult) result), invokers.size(), invocation);
             AsyncRpcResult rpcResult = new AsyncRpcResult(onceCompletableFuture, invocation);
             RpcContext.getClientAttachment().setFuture(new FutureAdapter<>(onceCompletableFuture));
             onceCompletableFuture.timeout = checker.newTimeout(new FutureTimeoutTask(loadbalance, invocation, rpcResult, onceCompletableFuture, invoker, invokers),
@@ -129,11 +130,9 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 return;
             }
             invokers.remove(invoker);
-            /*if (invokers.isEmpty()) {
-                this.invokers = new ArrayList<>(origin);
-            }*/
             RpcContext.restoreContext(tmpContext);
             RpcContext.restoreServerContext(tmpServerContext);
+            RpcContext.getClientAttachment().setObjectAttachment(NodeManager.DOUBLE_FLAG, this.invokers.size() > 1);
             invoker = select(loadbalance, invocation, invokers, null);
             Result result = doInvoked(invocation, invokers, loadbalance, invoker);
             if (onceCompletableFuture.replace(((AsyncRpcResult) result))) {
@@ -146,8 +145,10 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     static class OnceCompletableFuture extends CompletableFuture<AppResponse> {
         Timeout timeout;
         AtomicInteger retries;
+        Invocation invocation;
 
-        public OnceCompletableFuture(AsyncRpcResult result, int size) {
+        public OnceCompletableFuture(AsyncRpcResult result, int size, Invocation invocation) {
+            this.invocation = invocation;
             this.retries = new AtomicInteger(size);
             register(result);
         }
@@ -157,8 +158,8 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 if (!isDone() && (retries.decrementAndGet() == 0 || (null != appResponse && !appResponse.hasException()))) {
                     OnceCompletableFuture.this.complete(null == appResponse ?
                             new AppResponse(new RpcException(RpcException.TIMEOUT_EXCEPTION,
-                                    "Invoke remote method timeout. method: " + RpcContext.getServiceContext().getMethodName()
-                                            + ", provider: " + RpcContext.getServiceContext().getUrl()))
+                                    "Invoke remote method timeout. method: " + invocation.getMethodName()
+                                            + ", provider: " + invocation.getInvoker().getUrl()))
                             : (AppResponse) appResponse);
                     if (null != timeout && !timeout.isExpired()) {
                         timeout.cancel();
@@ -173,7 +174,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         }
     }
 
-    class WaitCompletableFuture extends CompletableFuture<AppResponse> {
+  /*  class WaitCompletableFuture extends CompletableFuture<AppResponse> {
         Invoker<T> invoker;
         List<Invoker<T>> invokers;
         LoadBalance loadbalance;
@@ -231,5 +232,5 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             });
         }
 
-    }
+    }*/
 }

@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static java.lang.Math.exp;
 
@@ -27,6 +28,7 @@ public class NodeState {
     public volatile double timeoutRatio = 0L;
     private static final double ALPHA = 1 - exp(-1 / 60.0);//来自框架metrics的计算系数
     private final int windowSize = 5;
+    public final AtomicLong active = new AtomicLong(1);
 
     public NodeState(ScheduledExecutorService scheduledExecutor) {
         scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
@@ -37,7 +39,7 @@ public class NodeState {
                 long low = high - windowSize;
                 long sum = totalCounter.sum(low, high);
                 if (sum > 0) {
-                    long newTimeout = 8 + (layCounter.sum(low, high) / sum);
+                    long newTimeout = 10 + (layCounter.sum(low, high) / sum);
                     newTimeout = (long) (timeout + (newTimeout - timeout) * ALPHA);
                     timeout = Math.max(newTimeout, 20L);
                     long r = timeoutCounter.sum(low, high) / sum;
@@ -50,7 +52,8 @@ public class NodeState {
     }
 
     public int getWeight() {
-        return (int) (Math.max(1, weight * 10 * (1 - timeoutRatio)));
+        long l = active.get();
+        return (int) (Math.max(1, (l < weight ? weight : weight * 1.0 / l) * 10 * (1 - timeoutRatio)));
     }
 
     public void setWeight(int w) {
