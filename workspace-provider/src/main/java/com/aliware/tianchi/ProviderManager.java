@@ -62,29 +62,25 @@ public class ProviderManager {
             long sum = counter.sum(low, high);
             logger.info("WeightTask.start:{}", sum);
             if (sum > 0) {
-                try {
-                    int ok = (int) timeCounter.sum(low, high);
-                    int con = (int) concurrentCounter.sum(low, high) / ok;
-                    double r = ok * 1.0 / sum;
-                    if (r > 0.9) {
-                        if (lastRatio > 0.9 && con < weight) {
-                            con = weight;
-                        } else {
-                            con = (int) (weight + (con - weight) * ALPHA);
-                        }
-                    } else if (lastRatio > 0.9) {
-                        con = (int) (weight + (Math.min(con, weight - 1) - weight) * ALPHA);
+                int ok = (int) timeCounter.sum(low, high);
+                int con = ok == 0 ? weight / 2 : (int) concurrentCounter.sum(low, high) / ok;
+                double r = ok * 1.0 / sum;
+                if (r > 0.9) {
+                    if (lastRatio > 0.9 && con < weight) {
+                        con = weight;
                     } else {
-                        con = weight - 1;
+                        con = (int) (weight + (con - weight) * ALPHA);
                     }
-                    lastRatio = r;
-                    weight = Math.max(1, con);
-                    r = okRatio + (r - okRatio) * ALPHA;
-                    okRatio = Math.max(0, r);
-                    logger.info("WeightTask.okRatio:{}- {}", r, con);
-                } catch (Exception e) {
-                    logger.error("WeightTask error:{}", e.getMessage(), e);
+                } else if (lastRatio > 0.9) {
+                    con = (int) (weight + (Math.min(con, weight) - weight) * ALPHA);
+                } else {
+                    con = weight - 1;
                 }
+                lastRatio = r;
+                weight = Math.max(1, con);
+                r = okRatio + (r - okRatio) * ALPHA;
+                okRatio = Math.max(0, r);
+                logger.info("WeightTask.okRatio:{}- {}", r, con);
             }
             clean(high);
         }
