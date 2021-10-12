@@ -27,11 +27,7 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         long duration = System.nanoTime() - (long) invocation.getObjectAttachment(BEGIN);
         NodeState state = NodeManager.state(invoker);
-        Object value = appResponse.getObjectAttachment("t");
-        if (null != value) {
-            state.setAvgTime((Integer) value);
-        }
-        value = appResponse.getObjectAttachment("w");
+        Object value = appResponse.getObjectAttachment("w");
         if (null != value) {
             state.setWeight((Integer) value);
         }

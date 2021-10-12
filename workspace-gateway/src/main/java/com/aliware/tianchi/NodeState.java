@@ -51,14 +51,7 @@ public class NodeState {
     }
 
     public int getWeight() {
-        //乘以100位是为了让系数更加分明
-        return (int) (Math.max(1, weight * 100 * (1 - timeoutRatio) * 500 / this.avgTime));
-    }
-
-    public void setAvgTime(int at) {
-        if (avgTime != at) {
-            avgTime = at;
-        }
+        return (int) (Math.max(1, weight * 10 * (1 - timeoutRatio)));
     }
 
     public void setWeight(int w) {

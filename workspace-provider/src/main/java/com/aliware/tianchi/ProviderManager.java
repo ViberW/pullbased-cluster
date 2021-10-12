@@ -13,6 +13,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static java.lang.Math.exp;
+
 /**
  * @author Viber
  * @version 1.0
@@ -24,16 +26,20 @@ public class ProviderManager {
     private static HardwareAbstractionLayer hal = si.getHardware();
     private static ScheduledExecutorService scheduledExecutor;
     private static volatile boolean once = true;
-    public static volatile int responseTime = 1;
+    public static volatile double okRatio = 1;
     public static volatile int weight = 200;
     private final static Logger logger = LoggerFactory.getLogger(ProviderManager.class);
 
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(10);
-    private static final long oneMill = TimeUnit.MILLISECONDS.toNanos(1);
+    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(10);
     private static final long windowSize = 6;
     private static final Counter counter = new Counter();
     private static final Counter timeCounter = new Counter();
     private static final Counter concurrentCounter = new Counter();
+    public static final AtomicLong active = new AtomicLong(1);
+    private static final double ALPHA = 1 - exp(-10.0 / 100); //100毫秒, 每10ms的间隔数据
+    private static int lastok = 200;
+    private static double lastRatio = 1;
 
     public static void maybeInit(Invoker<?> invoker) {
         if (once) {
@@ -56,10 +62,27 @@ public class ProviderManager {
             long low = high - windowSize;
             long sum = counter.sum(low, high);
             if (sum > 0) {
-                long time = timeCounter.sum(low, high);
-                int r = (int) ((time / sum) / oneMill);
-                logger.info("WeightTask.avgTime:{}", r);
-                responseTime = Math.max(1, r);
+                int ok = (int) timeCounter.sum(low, high);
+                double r = ok * 1.0 / sum;
+                int tmp = ok;
+                if (r > 0.9) {
+                    if (lastRatio > 0.9 && lastok > ok) {
+                        ok = lastok;
+                    } else {
+                        ok = (int) (lastok + (ok - lastok) * ALPHA);
+                    }
+                } else if (lastRatio > 0.9) {
+                    ok = lastok - 1;
+                } else {
+                    ok = (int) (lastok + (Math.min(ok, lastok) - 1 - lastok) * ALPHA);
+                }
+                lastok = tmp;
+                lastRatio = r;
+                weight = ok;
+
+                r = okRatio + (r - okRatio) * ALPHA;
+                logger.info("WeightTask.okRatio:{}- {}", r, ok);
+                okRatio = Math.max(0, r);
             }
             clean(high);
         }
@@ -67,11 +90,10 @@ public class ProviderManager {
 
     public static void time(long duration) {
         long offset = ProviderManager.offset();
+        if (duration < okInterval) {
+            timeCounter.add(offset, 1);
+        }
         counter.add(offset, 1);
-        timeCounter.add(offset, duration);
-        /*if (duration < timeInterval) {
-            concurrentCounter.add(offset, concurrent);
-        }*/
     }
 
     public static long offset() {

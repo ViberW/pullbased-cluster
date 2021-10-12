@@ -4,6 +4,8 @@ import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
 import org.apache.dubbo.rpc.*;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 /**
  * 服务端过滤器
  * 可选接口
@@ -18,11 +20,24 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         long begin = System.nanoTime();
+        int maybeLimit = 100;
         RpcContext.getServerAttachment().setObjectAttachment(BEGIN, begin);
+        long concurrent = ProviderManager.active.getAndIncrement();
         try {
+            if (concurrent > maybeLimit) {
+                double r = ThreadLocalRandom.current().nextDouble(1);
+                if (r > ProviderManager.okRatio) {
+                    throw new RpcException(RpcException.LIMIT_EXCEEDED_EXCEPTION,
+                            "Failed to invoke method " + invocation.getMethodName() + " in provider " +
+                                    invoker.getUrl() + ", cause: The service using threads greater" +
+                                    " than <dubbo:service executes=\"" + maybeLimit + "\" /> limited.");
+                }
+            }
             return invoker.invoke(invocation);
         } catch (Exception e) {
             throw e;
+        } finally {
+            ProviderManager.active.getAndDecrement();
         }
     }
 
@@ -31,7 +46,6 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         ProviderManager.maybeInit(invoker);
         long duration = System.nanoTime() - (long) RpcContext.getServerAttachment().getObjectAttachment(BEGIN);
         ProviderManager.time(duration);
-        appResponse.setObjectAttachment("t", ProviderManager.responseTime);
         appResponse.setObjectAttachment("w", ProviderManager.weight);
         appResponse.setObjectAttachment("d", duration);
     }
