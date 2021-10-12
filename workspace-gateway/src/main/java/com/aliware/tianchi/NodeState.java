@@ -28,7 +28,6 @@ public class NodeState {
     public volatile double timeoutRatio = 0L;
     private static final double ALPHA = 1 - exp(-1 / 60.0);//来自框架metrics的计算系数
     private final int windowSize = 5;
-    public final AtomicLong active = new AtomicLong(1);
 
     public NodeState(ScheduledExecutorService scheduledExecutor) {
         scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
@@ -52,8 +51,7 @@ public class NodeState {
     }
 
     public int getWeight() {
-        long l = active.get();
-        return (int) (Math.max(1, (l < weight ? weight : weight * 1.0 / l) * 10 * (1 - timeoutRatio)));
+        return (int) (Math.max(1, weight * 10 * (1 - timeoutRatio)));
     }
 
     public void setWeight(int w) {
