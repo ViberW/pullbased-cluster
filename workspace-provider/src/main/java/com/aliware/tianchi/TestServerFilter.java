@@ -14,13 +14,11 @@ import org.apache.dubbo.rpc.*;
 public class TestServerFilter implements Filter, BaseFilter.Listener {
 
     private static final String BEGIN = "_provider_begin";
-    private static final String ACTIVE = "_provider_active";
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         long begin = System.nanoTime();
         RpcContext.getServerAttachment().setObjectAttachment(BEGIN, begin);
-        RpcContext.getServerAttachment().setObjectAttachment(ACTIVE, ProviderManager.active.getAndIncrement());
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {
@@ -31,9 +29,8 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         ProviderManager.maybeInit(invoker);
-        ProviderManager.active.getAndDecrement();
         long duration = System.nanoTime() - (long) RpcContext.getServerAttachment().getObjectAttachment(BEGIN);
-        ProviderManager.time(duration, (long) RpcContext.getServerAttachment().getObjectAttachment(ACTIVE));
+        ProviderManager.time(duration);
         appResponse.setObjectAttachment("t", ProviderManager.responseTime);
         appResponse.setObjectAttachment("w", ProviderManager.weight);
         appResponse.setObjectAttachment("d", duration);
@@ -41,5 +38,6 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
+        t.printStackTrace();
     }
 }

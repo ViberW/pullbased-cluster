@@ -34,7 +34,6 @@ public class ProviderManager {
     private static final Counter counter = new Counter();
     private static final Counter timeCounter = new Counter();
     private static final Counter concurrentCounter = new Counter();
-    public static AtomicLong active = new AtomicLong(1); //帮助计算weight, 机器能够容忍的合适的weight
 
     public static void maybeInit(Invoker<?> invoker) {
         if (once) {
@@ -61,15 +60,12 @@ public class ProviderManager {
                 int r = (int) ((time / sum) / oneMill);
                 logger.info("WeightTask.avgTime:{}", r);
                 responseTime = Math.max(1, r);
-
-
-                logger.info("WeightTask.weight:{}", weight);
             }
             clean(high);
         }
     }
 
-    public static void time(long duration, long concurrent) {
+    public static void time(long duration) {
         long offset = ProviderManager.offset();
         counter.add(offset, 1);
         timeCounter.add(offset, duration);
