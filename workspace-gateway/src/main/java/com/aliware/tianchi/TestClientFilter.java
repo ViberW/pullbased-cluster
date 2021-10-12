@@ -2,6 +2,7 @@ package com.aliware.tianchi;
 
 import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
+import org.apache.dubbo.remoting.RemotingException;
 import org.apache.dubbo.remoting.TimeoutException;
 import org.apache.dubbo.rpc.*;
 
@@ -34,6 +35,9 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         value = appResponse.getObjectAttachment("d");
         state.end(null != value ? Math.max(0, duration - (long) value) : state.timeout,
                 appResponse.hasException() && appResponse.getException() instanceof TimeoutException);
+        if (appResponse.hasException() && appResponse.getException() instanceof RemotingException) {
+            state.setWeight(1);//若是网络问题, 则将比重降低为1
+        }
     }
 
     @Override

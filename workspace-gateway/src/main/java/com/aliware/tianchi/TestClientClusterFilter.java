@@ -17,8 +17,7 @@ public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listen
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         try {
             //添加标签属性, 要求添加标签, 若是存在当前的标签, 则从result中获取到响应的属性值, 这里决定是否添加某个invoker?
-            Result result = invoker.invoke(invocation);
-            return result;
+            return invoker.invoke(invocation);
         } catch (Exception e) {
             throw e;
         }

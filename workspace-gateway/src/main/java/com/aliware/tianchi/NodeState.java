@@ -40,7 +40,6 @@ public class NodeState {
                     long newTimeout = 8 + (layCounter.sum(low, high) / sum);
                     newTimeout = (long) (timeout + (newTimeout - timeout) * ALPHA);
                     timeout = Math.max(newTimeout, 20L);
-                    logger.info("NodeState.timeout:{}", timeout);
                     long r = timeoutCounter.sum(low, high) / sum;
                     r = (long) (timeoutRatio + (r - timeoutRatio) * ALPHA);
                     timeoutRatio = Math.max(0, r);

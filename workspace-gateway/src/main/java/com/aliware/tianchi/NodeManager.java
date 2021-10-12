@@ -16,7 +16,6 @@ public class NodeManager {
     private static final Map<String, NodeState> STATES = new ConcurrentHashMap<>();
     private static ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
 
-    //20毫秒的方法(这个时间可以根据这台机器的近一段时间的处理能力一定浮动的调整) -- 需要快速失败
     public static NodeState state(Invoker<?> invoker) {
         String uri = invoker.getUrl().toIdentityString();
         return STATES.computeIfAbsent(uri, s -> new NodeState(scheduledExecutor));

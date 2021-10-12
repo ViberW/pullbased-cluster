@@ -16,38 +16,40 @@ import java.util.concurrent.ThreadLocalRandom;
 public class TestServerFilter implements Filter, BaseFilter.Listener {
 
     private static final String BEGIN = "_provider_begin";
+    private static final String ACTIVE = "_provider_active";
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         long begin = System.nanoTime();
-        int maybeLimit = 100;
         RpcContext.getServerAttachment().setObjectAttachment(BEGIN, begin);
         long concurrent = ProviderManager.active.getAndIncrement();
+        invocation.setObjectAttachment(ACTIVE, concurrent);
         try {
-            if (concurrent > maybeLimit) {
+            if (concurrent > ProviderManager.weight) {
                 double r = ThreadLocalRandom.current().nextDouble(1);
                 if (r > ProviderManager.okRatio) {
                     throw new RpcException(RpcException.LIMIT_EXCEEDED_EXCEPTION,
                             "Failed to invoke method " + invocation.getMethodName() + " in provider " +
                                     invoker.getUrl() + ", cause: The service using threads greater" +
-                                    " than <dubbo:service executes=\"" + maybeLimit + "\" /> limited.");
+                                    " than <dubbo:service executes=\"" + ProviderManager.weight + "\" /> limited.");
                 }
             }
             return invoker.invoke(invocation);
         } catch (Exception e) {
             throw e;
-        } finally {
-            ProviderManager.active.getAndDecrement();
         }
     }
 
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         ProviderManager.maybeInit(invoker);
-        long duration = System.nanoTime() - (long) RpcContext.getServerAttachment().getObjectAttachment(BEGIN);
-        ProviderManager.time(duration);
-        appResponse.setObjectAttachment("w", ProviderManager.weight);
-        appResponse.setObjectAttachment("d", duration);
+        ProviderManager.active.getAndDecrement();
+        if (!appResponse.hasException()) {
+            long duration = System.nanoTime() - (long) RpcContext.getServerAttachment().getObjectAttachment(BEGIN);
+            ProviderManager.time(duration, (long) invocation.getObjectAttachment(ACTIVE));
+            appResponse.setObjectAttachment("w", ProviderManager.weight);
+            appResponse.setObjectAttachment("d", duration);
+        }
     }
 
     @Override

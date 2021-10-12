@@ -38,6 +38,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         checker = new HashedWheelTimer(
                 new NamedThreadFactory("user-cluster-check-timer", true),
                 20, TimeUnit.MILLISECONDS, 40);
+        //这里需要变更超时时间.
     }
 
     @Override
@@ -197,13 +198,17 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             tmpServerContext = RpcContext.getServerContext();
         }
 
-        public void register(CompletableFuture<AppResponse> responseFuture) {
-            responseFuture.whenComplete((appResponse, throwable) -> {
+        public void register(AsyncRpcResult result) {
+            result.whenCompleteWithContext((appResponse, throwable) -> {
                 if (isDone()) {
                     return;
                 }
                 if (retries.decrementAndGet() == 0 || (null != appResponse && !appResponse.hasException())) {
-                    WaitCompletableFuture.this.complete(appResponse);
+                    WaitCompletableFuture.this.complete(null == appResponse ?
+                            new AppResponse(new RpcException(RpcException.TIMEOUT_EXCEPTION,
+                                    "Invoke remote method timeout. method: " + RpcContext.getServiceContext().getMethodName()
+                                            + ", provider: " + RpcContext.getServiceContext().getUrl()))
+                            : (AppResponse) appResponse);
                 } else {
                     if (System.currentTimeMillis() - start + NodeManager.state(invoker).timeout > time) {
                         this.complete(new AppResponse(new RpcException(RpcException.TIMEOUT_EXCEPTION,
@@ -217,14 +222,11 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                         return;
                     }
                     invokers.remove(invoker);
-                    /*if (invokers.isEmpty()) {
-                        this.invokers = new ArrayList<>(origin);
-                    }*/
                     RpcContext.restoreContext(tmpContext);
                     RpcContext.restoreServerContext(tmpServerContext);
                     invoker = select(loadbalance, invocation, invokers, null);
-                    Result result = doInvoked(invocation, invokers, loadbalance, invoker);
-                    register(((AsyncRpcResult) result).getResponseFuture());
+                    Result r = doInvoked(invocation, invokers, loadbalance, invoker);
+                    register((AsyncRpcResult) r);
                 }
             });
         }

@@ -38,8 +38,8 @@ public class ProviderManager {
     private static final Counter concurrentCounter = new Counter();
     public static final AtomicLong active = new AtomicLong(1);
     private static final double ALPHA = 1 - exp(-10.0 / 100); //100毫秒, 每10ms的间隔数据
-    private static int lastok = 200;
     private static double lastRatio = 1;
+    private static long lastOver9 = 0;
 
     public static void maybeInit(Invoker<?> invoker) {
         if (once) {
@@ -63,35 +63,40 @@ public class ProviderManager {
             long sum = counter.sum(low, high);
             if (sum > 0) {
                 int ok = (int) timeCounter.sum(low, high);
+                int con = (int) concurrentCounter.sum(low, high) / ok;
                 double r = ok * 1.0 / sum;
-                int tmp = ok;
                 if (r > 0.9) {
-                    if (lastRatio > 0.9 && lastok > ok) {
-                        ok = lastok;
-                    } else {
-                        ok = (int) (lastok + (ok - lastok) * ALPHA);
+                    if (lastOver9 == 0) {
+                        lastOver9 = System.currentTimeMillis();
                     }
-                } else if (lastRatio > 0.9) {
-                    ok = lastok - 1;
-                } else {
-                    ok = (int) (lastok + (Math.min(ok, lastok) - 1 - lastok) * ALPHA);
-                }
-                lastok = tmp;
-                lastRatio = r;
-                weight = ok;
+                    if (lastRatio > 0.9 && con < weight) {
+                        con = weight + (int) (System.currentTimeMillis() - lastOver9) / 5; //每5s尝试+1
+                    } else {
+                        con = (int) (weight + (con - weight) * ALPHA);
+                    }
 
+                } else if (lastRatio > 0.9) {
+                    con = (con + weight) / 2;
+                    lastOver9 = 0;
+                } else {
+                    con = (int) (weight + (Math.min(ok, weight) - 1 - weight) * ALPHA);
+                    lastOver9 = 0;
+                }
+                lastRatio = r;
+                weight = Math.max(1, con);
                 r = okRatio + (r - okRatio) * ALPHA;
-                logger.info("WeightTask.okRatio:{}- {}", r, ok);
+                logger.info("WeightTask.okRatio:{}- {}", r, con);
                 okRatio = Math.max(0, r);
             }
             clean(high);
         }
     }
 
-    public static void time(long duration) {
+    public static void time(long duration, long concurrent) {
         long offset = ProviderManager.offset();
         if (duration < okInterval) {
             timeCounter.add(offset, 1);
+            concurrentCounter.add(offset, concurrent);
         }
         counter.add(offset, 1);
     }
