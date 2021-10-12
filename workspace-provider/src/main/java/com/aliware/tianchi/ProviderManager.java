@@ -60,33 +60,38 @@ public class ProviderManager {
             long high = offset();
             long low = high - windowSize;
             long sum = counter.sum(low, high);
+            logger.info("WeightTask.start:{}", sum);
             if (sum > 0) {
-                int ok = (int) timeCounter.sum(low, high);
-                int con = (int) concurrentCounter.sum(low, high) / ok;
-                double r = ok * 1.0 / sum;
-                if (r > 0.9) {
-                    if (lastRatio > 0.9 && con < weight) {
-                        con = weight;
+                try {
+                    int ok = (int) timeCounter.sum(low, high);
+                    int con = (int) concurrentCounter.sum(low, high) / ok;
+                    double r = ok * 1.0 / sum;
+                    if (r > 0.9) {
+                        if (lastRatio > 0.9 && con < weight) {
+                            con = weight;
+                        } else {
+                            con = (int) (weight + (con - weight) * ALPHA);
+                        }
+                    } else if (lastRatio > 0.9) {
+                        con = (int) (weight + (Math.min(con, weight - 1) - weight) * ALPHA);
                     } else {
-                        con = (int) (weight + (con - weight) * ALPHA);
+                        con = weight - 1;
                     }
-                } else if (lastRatio > 0.9) {
-                    con = (int) (weight + (Math.min(con, weight - 1) - weight) * ALPHA);
-                } else {
-                    con = weight - 1;
+                    lastRatio = r;
+                    weight = Math.max(1, con);
+                    r = okRatio + (r - okRatio) * ALPHA;
+                    okRatio = Math.max(0, r);
+                    logger.info("WeightTask.okRatio:{}- {}", r, con);
+                } catch (Exception e) {
+                    logger.error("WeightTask error:{}", e.getMessage(), e);
                 }
-                lastRatio = r;
-                weight = Math.max(1, con);
-                r = okRatio + (r - okRatio) * ALPHA;
-                okRatio = Math.max(0, r);
-                logger.info("WeightTask.okRatio:{}- {}", r, con);
             }
             clean(high);
         }
     }
 
     public static void time(long duration, long concurrent) {
-        long offset = ProviderManager.offset();
+        long offset = offset();
         counter.add(offset, 1);
         if (duration < okInterval) {
             timeCounter.add(offset, 1);
