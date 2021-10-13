@@ -1,8 +1,10 @@
 package com.aliware.tianchi;
 
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.Function;
 
 /**
  * @author Viber
@@ -10,25 +12,23 @@ import java.util.concurrent.atomic.LongAdder;
  * @apiNote 基于skipList构造请求的超时时间
  * @since 2021/9/28 17:02
  */
-public class Counter {
+public class Counter<T> {
 
-    private ConcurrentSkipListMap<Long, LongAdder> data =
+    private ConcurrentSkipListMap<Long, T> data =
             new ConcurrentSkipListMap<>(Comparator.reverseOrder());
+    Function<Long, T> function;
 
-    public void add(long offset, long n) {
-        getOrCreate(offset).add(n);
+    public Counter(Function<Long, T> function) {
+        this.function = function;
     }
 
-    public long sum(long fromOffset, long toOffset) {
-        return sum(fromOffset, true, toOffset, true);
+    public Collection<T> sub(long fromOffset, long toOffset) {
+        return sub(fromOffset, true, toOffset, true);
     }
 
-    public long sum(long fromOffset, boolean fromInclusive, long toOffset, boolean toInclusive) {
+    public Collection<T> sub(long fromOffset, boolean fromInclusive, long toOffset, boolean toInclusive) {
         return data.subMap(toOffset, toInclusive, fromOffset, fromInclusive)
-                .values()
-                .stream()
-                .mapToLong(LongAdder::sum)
-                .sum();
+                .values();
     }
 
     public void clean(long toOffset) {
@@ -40,7 +40,7 @@ public class Counter {
         data.tailMap(toOffset, toInclusive).clear();
     }
 
-    private LongAdder getOrCreate(long offset) {
-        return data.computeIfAbsent(offset, k -> new LongAdder());
+    public T get(long offset) {
+        return data.computeIfAbsent(offset, function::apply);
     }
 }

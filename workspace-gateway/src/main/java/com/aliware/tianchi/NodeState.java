@@ -1,11 +1,8 @@
 package com.aliware.tianchi;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static java.lang.Math.exp;
 
@@ -16,16 +13,12 @@ import static java.lang.Math.exp;
  * @since 2021/9/10 14:00
  */
 public class NodeState {
-    private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
     private static final long timeInterval = TimeUnit.SECONDS.toMillis(1);
     private static final long oneMill = TimeUnit.MILLISECONDS.toNanos(1);
     public volatile int avgTime = 1;
     public volatile int weight = 200;
-    private final Counter totalCounter = new Counter();
-    private final Counter layCounter = new Counter();
-    private final Counter timeoutCounter = new Counter();
+    private final Counter<StateCounter> counter = new Counter<>(o -> new StateCounter());
     public volatile long timeout = 40L;
-    public volatile double timeoutRatio = 0L;
     private static final double ALPHA = 1 - exp(-1 / 60.0);//来自框架metrics的计算系数
     private final int windowSize = 5;
 
@@ -33,17 +26,13 @@ public class NodeState {
         scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
             @Override
             public void run() {
-                //计算当前一段时间内的 最近5秒的平均延迟
                 long high = offset();
                 long low = high - windowSize;
-                long sum = totalCounter.sum(low, high);
-                if (sum > 0) {
-                    long newTimeout = 10 + (layCounter.sum(low, high) / sum);
+                long[] ret = sum(low, high);
+                if (ret[0] > 0) {
+                    long newTimeout = 10 + (ret[1] / ret[0]);
                     newTimeout = (long) (timeout + (newTimeout - timeout) * ALPHA);
                     timeout = Math.max(newTimeout, 20L);
-                    long r = timeoutCounter.sum(low, high) / sum;
-                    r = (long) (timeoutRatio + (r - timeoutRatio) * ALPHA);
-                    timeoutRatio = Math.max(0, r);
                 }
                 clean(high);
             }
@@ -51,7 +40,7 @@ public class NodeState {
     }
 
     public int getWeight() {
-        return (int) (Math.max(1, weight * 10 * (1 - timeoutRatio)));
+        return Math.max(1, weight);
     }
 
     public void setWeight(int w) {
@@ -60,13 +49,29 @@ public class NodeState {
         }
     }
 
-    public void end(long duration, boolean timeout) {
-        long offset = offset();
-        totalCounter.add(offset, 1);
-        layCounter.add(offset, duration / oneMill);
-        if (timeout) {
-            timeoutCounter.add(offset, 1);
+    public void setTimeout(int t) {
+        if (timeout != t) {
+            timeout = t;
         }
+    }
+
+    public void end(long duration) {
+        long offset = offset();
+        StateCounter state = counter.get(offset);
+        state.getDuration().add(duration / oneMill);
+        state.getTotal().add(1);
+    }
+
+    public long[] sum(long fromOffset, long toOffset) {
+        long[] result = {0, 0};
+        Collection<StateCounter> sub = counter.sub(fromOffset, toOffset);
+        if (!sub.isEmpty()) {
+            sub.forEach(state -> {
+                result[0] += state.getTotal().sum();
+                result[1] += state.getDuration().sum();
+            });
+        }
+        return result;
     }
 
     public long offset() {
@@ -75,9 +80,7 @@ public class NodeState {
 
     public void clean(long high) {
         long toKey = high - (windowSize << 1);
-        totalCounter.clean(toKey);
-        layCounter.clean(toKey);
-        timeoutCounter.clean(toKey);
+        counter.clean(toKey);
     }
 
 }

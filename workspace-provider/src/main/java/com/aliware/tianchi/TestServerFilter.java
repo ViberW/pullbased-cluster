@@ -4,6 +4,8 @@ import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
 import org.apache.dubbo.rpc.*;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 /**
  * 服务端过滤器
  * 可选接口
@@ -18,9 +20,18 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        long begin = System.nanoTime();
-        invocation.setObjectAttachment(BEGIN, begin);
-        invocation.setObjectAttachment(ACTIVE, ProviderManager.active.getAndIncrement());
+        invocation.setObjectAttachment(BEGIN, System.nanoTime());
+        long concurrent = ProviderManager.active.getAndIncrement();
+        invocation.setObjectAttachment(ACTIVE, concurrent);
+        //达到服务端的最高水位的上限;
+        long w = ProviderManager.weight;
+        if (concurrent > w) {
+            double r = ThreadLocalRandom.current().nextDouble(1);
+            if (r > (2 * w - concurrent) * 1.0 / w) {
+                throw new RpcException(RPCCode.FAST_FAIL,
+                        "fast failure to invoke method " + invocation.getMethodName() + " in provider " + invoker.getUrl());
+            }
+        }
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {

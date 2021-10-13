@@ -8,6 +8,7 @@ import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
 import oshi.hardware.HardwareAbstractionLayer;
 
+import java.util.Collection;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -22,65 +23,59 @@ import static java.lang.Math.exp;
  * @since 2021/9/10 14:32
  */
 public class ProviderManager {
+    private final static Logger logger = LoggerFactory.getLogger(ProviderManager.class);
     private static SystemInfo si = new SystemInfo();
     private static HardwareAbstractionLayer hal = si.getHardware();
     private static ScheduledExecutorService scheduledExecutor;
     private static volatile boolean once = true;
-    public static volatile double okRatio = 1;
-    public static volatile int weight = 200;
-    private final static Logger logger = LoggerFactory.getLogger(ProviderManager.class);
 
-    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(10);
-    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(10);
+    public static volatile int weight = 100;
+
+    private static final long timeInterval = TimeUnit.SECONDS.toNanos(1);
+    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(8);
+    public static long lastAvg = okInterval;
     private static final long windowSize = 6;
-    private static final Counter counter = new Counter();
-    private static final Counter timeCounter = new Counter();
-    private static final Counter concurrentCounter = new Counter();
+    private static final Counter<SumCounter> counter = new Counter<>(l -> new SumCounter());
     public static final AtomicLong active = new AtomicLong(1);
-    private static final double ALPHA = 1 - exp(-10.0 / 100); //100毫秒, 每10ms的间隔数据
-    private static double lastRatio = 1;
+    private static final double ALPHA = 1 - exp(-20 / 1000.0);
 
     public static void maybeInit(Invoker<?> invoker) {
         if (once) {
             synchronized (ProviderManager.class) {
                 if (once) {
                     scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-                    //这个单线程处理
-                    scheduledExecutor.scheduleWithFixedDelay(new WeightTask(),
-                            200, 100, TimeUnit.MILLISECONDS);
+                    scheduledExecutor.scheduleWithFixedDelay(new CalculateTask(), 1000,
+                            500, TimeUnit.MILLISECONDS);
                     once = false;
                 }
             }
         }
     }
 
-    private static class WeightTask implements Runnable {
+    private static class CalculateTask implements Runnable {
         @Override
         public void run() {
             long high = offset();
             long low = high - windowSize;
-            long sum = counter.sum(low, high);
-            logger.info("WeightTask.start:{}", sum);
-            if (sum > 0) {
-                int ok = (int) timeCounter.sum(low, high);
-                int con = ok == 0 ? weight / 2 : (int) concurrentCounter.sum(low, high) / ok;
-                double r = ok * 1.0 / sum;
-                if (r > 0.9) {
-                    if (lastRatio > 0.9 && con < weight) {
-                        con = weight;
-                    } else {
-                        con = (int) (weight + (con - weight) * ALPHA);
+            long[] ret = sum(low, high);
+            if (ret[0] > 0) {
+                long avgTime = Math.max(1, ret[2] / ret[0]);
+                int concurrent = (int) (ret[1] / ret[0]);
+                int nw = weight;
+                if (avgTime > 0) {
+                    if (avgTime < okInterval) {
+                        if (concurrent > weight) {
+                            nw = (int) (weight + (concurrent - weight) * ALPHA);
+                        } else if (avgTime < okInterval * 0.75) {
+                            nw = Math.max(weight, concurrent) + 1;
+                        }
+                    } else if (avgTime >= lastAvg) {
+                        nw = Math.max(1, weight - 1);
                     }
-                } else if (lastRatio > 0.9) {
-                    con = (int) (weight + (Math.min(con, weight) - weight) * ALPHA);
-                } else {
-                    con = weight - 1;
+                    lastAvg = avgTime;
+                    weight = nw;
+                    logger.info("CalculateTask:{}", nw);
                 }
-                lastRatio = r;
-                weight = Math.max(1, con);
-                r = okRatio + (r - okRatio) * ALPHA;
-                okRatio = Math.max(0, r);
-                logger.info("WeightTask.okRatio:{}- {}", r, con);
             }
             clean(high);
         }
@@ -88,22 +83,32 @@ public class ProviderManager {
 
     public static void time(long duration, long concurrent) {
         long offset = offset();
-        counter.add(offset, 1);
-        if (duration < okInterval) {
-            timeCounter.add(offset, 1);
-            concurrentCounter.add(offset, concurrent);
-        }
+        SumCounter c = counter.get(offset);
+        c.getTotal().add(1);
+        c.getConcurrent().add(concurrent);
+        c.getDuration().add(duration);
     }
 
     public static long offset() {
         return System.nanoTime() / timeInterval;
     }
 
+    private static long[] sum(long fromOffset, long toOffset) {
+        long[] result = {0, 0, 0};
+        Collection<SumCounter> sub = counter.sub(fromOffset, toOffset);
+        if (!sub.isEmpty()) {
+            sub.forEach(state -> {
+                result[0] += state.getTotal().sum();
+                result[1] += state.getConcurrent().sum();
+                result[2] += state.getDuration().sum();
+            });
+        }
+        return result;
+    }
+
     public static void clean(long high) {
         long toKey = high - (windowSize << 1);
         counter.clean(toKey);
-        timeCounter.clean(toKey);
-        concurrentCounter.clean(toKey);
     }
 
     private static double calculateMemory() {
