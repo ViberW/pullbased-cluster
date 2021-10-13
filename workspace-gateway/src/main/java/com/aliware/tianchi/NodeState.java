@@ -32,7 +32,7 @@ public class NodeState {
                 if (ret[0] > 0) {
                     long newTimeout = 10 + (ret[1] / ret[0]);
                     newTimeout = (long) (timeout + (newTimeout - timeout) * ALPHA);
-                    timeout = Math.max(newTimeout, 15L);
+                    timeout = Math.max(newTimeout, 10L);
                 }
                 clean(high);
             }

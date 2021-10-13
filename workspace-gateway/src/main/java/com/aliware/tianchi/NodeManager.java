@@ -13,7 +13,6 @@ import java.util.concurrent.*;
  */
 public class NodeManager {
 
-    public static final String DOUBLE_FLAG = "double_flag";
     //帮助定期的减少Node的信息
     private static final Map<String, NodeState> STATES = new ConcurrentHashMap<>();
     private static ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();

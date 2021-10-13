@@ -219,7 +219,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                         invoker = select(loadbalance, invocation, invokers, null);
                         Result r = doInvoked(invocation, invokers, loadbalance, invoker);
                         register((AsyncRpcResult) r);
-                    } catch (RpcException e) {
+                    } catch (Exception e) {
                         complete(new AppResponse(e));
                     } finally {
                         RpcContext.restoreContext(tc);
