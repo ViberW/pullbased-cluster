@@ -31,13 +31,13 @@ public class ProviderManager {
 
     public static volatile int weight = 100;
 
-    private static final long timeInterval = TimeUnit.SECONDS.toNanos(1);
+    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(500);
     private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(8);
     public static long lastAvg = okInterval;
     private static final long windowSize = 6;
     private static final Counter<SumCounter> counter = new Counter<>(l -> new SumCounter());
     public static final AtomicLong active = new AtomicLong(1);
-    private static final double ALPHA = 1 - exp(-20 / 1000.0);
+    private static final double ALPHA = 1 - exp(-1 / 6.0);
 
     public static void maybeInit(Invoker<?> invoker) {
         if (once) {
@@ -59,7 +59,7 @@ public class ProviderManager {
             long low = high - windowSize;
             long[] ret = sum(low, high);
             if (ret[0] > 0) {
-                long avgTime = Math.max(1, ret[2] / ret[0]);
+                long avgTime = ret[2] / ret[0];
                 int concurrent = (int) (ret[1] / ret[0]);
                 int nw = weight;
                 if (avgTime > 0) {
@@ -74,7 +74,6 @@ public class ProviderManager {
                     }
                     lastAvg = avgTime;
                     weight = nw;
-                    logger.info("CalculateTask:{}", nw);
                 }
             }
             clean(high);

@@ -1,6 +1,5 @@
 package com.aliware.tianchi;
 
-import org.apache.dubbo.remoting.TimeoutException;
 import org.apache.dubbo.rpc.*;
 import org.apache.dubbo.rpc.cluster.Directory;
 import org.apache.dubbo.rpc.cluster.LoadBalance;
@@ -220,6 +219,8 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                         invoker = select(loadbalance, invocation, invokers, null);
                         Result r = doInvoked(invocation, invokers, loadbalance, invoker);
                         register((AsyncRpcResult) r);
+                    } catch (RpcException e) {
+                        complete(new AppResponse(e));
                     } finally {
                         RpcContext.restoreContext(tc);
                         RpcContext.restoreServerContext(ts);
