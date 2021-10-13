@@ -1,9 +1,12 @@
 package com.aliware.tianchi;
 
+import org.apache.dubbo.common.URL;
 import org.apache.dubbo.rpc.Invoker;
 
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * @author Viber
@@ -18,7 +21,16 @@ public class NodeManager {
     private static ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
 
     public static NodeState state(Invoker<?> invoker) {
-        String uri = invoker.getUrl().toIdentityString();
-        return STATES.computeIfAbsent(uri, s -> new NodeState(scheduledExecutor));
+//        String uri = invoker.getUrl().toIdentityString();
+        return STATES.computeIfAbsent(buildString(invoker), s -> new NodeState(scheduledExecutor));
+    }
+
+
+    private static String buildString(Invoker<?> invoker) {
+        URL url = invoker.getUrl();
+        return new StringBuilder()
+                .append(url.getHost())
+                .append(":")
+                .append(url.getPort()).toString();
     }
 }
