@@ -31,13 +31,13 @@ public class ProviderManager {
 
     public static volatile int weight = 100;
 
-    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(500);
+    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);
     private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(8);
     public static long lastAvg = okInterval;
-    private static final long windowSize = 6;
+    private static final long windowSize = 5;
     private static final Counter<SumCounter> counter = new Counter<>(l -> new SumCounter());
     public static final AtomicLong active = new AtomicLong(1);
-    private static final double ALPHA = 1 - exp(-1 / 6.0);
+    private static final double ALPHA = 1 - exp(-1 / 5.0);
 
     public static void maybeInit(Invoker<?> invoker) {
         if (once) {
@@ -45,7 +45,7 @@ public class ProviderManager {
                 if (once) {
                     scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
                     scheduledExecutor.scheduleWithFixedDelay(new CalculateTask(), 1000,
-                            500, TimeUnit.MILLISECONDS);
+                            200, TimeUnit.MILLISECONDS);
                     once = false;
                 }
             }
