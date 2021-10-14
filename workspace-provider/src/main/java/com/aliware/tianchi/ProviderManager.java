@@ -32,7 +32,7 @@ public class ProviderManager {
     public static volatile int weight = 100;
 
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);
-    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(8);
+    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(8); //可以通过url参数携带进来, 这里就写死了
     public static long lastAvg = okInterval;
     private static final long windowSize = 5;
     private static final Counter<SumCounter> counter = new Counter<>(l -> new SumCounter());

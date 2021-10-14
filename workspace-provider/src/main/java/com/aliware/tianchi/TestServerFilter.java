@@ -20,18 +20,19 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        invocation.setObjectAttachment(BEGIN, System.nanoTime());
         long concurrent = ProviderManager.active.getAndIncrement();
-        invocation.setObjectAttachment(ACTIVE, concurrent);
         //达到服务端的最高水位的上限;
         long w = ProviderManager.weight;
         if (concurrent > w) {
             double r = ThreadLocalRandom.current().nextDouble(1);
             if (r > 1.75 - (concurrent * 1.0 / w)) { //提高容忍度
                 throw new RpcException(RPCCode.FAST_FAIL,
-                        "fast failure to invoke method " + invocation.getMethodName() + " in provider " + invoker.getUrl());
+                        "fast failure by provider to invoke method "
+                                + invocation.getMethodName() + " in provider " + invoker.getUrl());
             }
         }
+        invocation.setObjectAttachment(ACTIVE, concurrent);
+        invocation.setObjectAttachment(BEGIN, System.nanoTime());
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {
