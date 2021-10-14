@@ -22,7 +22,6 @@ public class NodeState {
     public volatile long timeout = 30L;
     private static final double ALPHA = 1 - exp(-1 / 5.0);//来自框架metrics的计算系数
     private final int windowSize = 5;
-    public final AtomicLong ACTIVE = new AtomicLong(1);
 
     public NodeState(ScheduledExecutorService scheduledExecutor) {
         scheduledExecutor.scheduleWithFixedDelay(new Runnable() {

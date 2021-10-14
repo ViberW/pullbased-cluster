@@ -20,19 +20,7 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         //这里也需要来个限流策略
-        NodeState state = NodeManager.state(invoker);
-        long concurrent = state.ACTIVE.getAndIncrement();
-        long w = state.weight;
-        if (concurrent > w) {
-            double r = ThreadLocalRandom.current().nextDouble(1);
-            if (r > 2 - (concurrent * 1.0 / w)) { //容忍度高些, 因为网络传输, weight不是及时的
-                throw new RpcException(RPCCode.FAST_FAIL,
-                        "fast failure by consumer to invoke method "
-                                + invocation.getMethodName() + " in provider " + invoker.getUrl());
-            }
-        }
-
-        RpcContext.getClientAttachment().setAttachment(CommonConstants.TIMEOUT_KEY, state.timeout);
+        RpcContext.getClientAttachment().setAttachment(CommonConstants.TIMEOUT_KEY, NodeManager.state(invoker).timeout);
         invocation.setObjectAttachment(BEGIN, System.nanoTime());
         return invoker.invoke(invocation);
     }
@@ -41,7 +29,6 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         long duration = System.nanoTime() - (long) invocation.getObjectAttachment(BEGIN);
         NodeState state = NodeManager.state(invoker);
-        state.ACTIVE.getAndDecrement();
         Object value = appResponse.getObjectAttachment("w");
         if (null != value) {
             state.setWeight((Integer) value);
@@ -52,6 +39,5 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
-        NodeManager.state(invoker).ACTIVE.getAndDecrement();
     }
 }
