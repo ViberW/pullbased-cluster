@@ -2,8 +2,10 @@ package com.aliware.tianchi;
 
 import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
+import org.apache.dubbo.remoting.TimeoutException;
 import org.apache.dubbo.rpc.*;
 
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -34,10 +36,17 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
             state.setWeight((Integer) value);
         }
 //        value = appResponse.getObjectAttachment("d");
-        state.end(null != value ? Math.max(0, duration - (long) value) : state.timeout);
+        state.end(/*null != value ? Math.max(0, duration - (long) value)*/ duration /*: state.timeout*/);
     }
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
+        if (t instanceof CompletionException) {
+            t = ((CompletionException) t).getCause();
+        }
+        if (t instanceof TimeoutException) {
+            NodeState state = NodeManager.state(invoker);
+            state.end(state.timeout);
+        }
     }
 }

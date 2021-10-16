@@ -114,6 +114,8 @@ public class ProviderManager {
                     if (most * 1.0 / total >= 0.5) {
                         int nw = weight + 1;
                         logger.info("CalculateTask.nw1: {}", nw);
+                        weight = nw;
+                        clean(high);
                     }
                 } else if (maxIndex < 3) {
                     int total = 0;
@@ -129,6 +131,8 @@ public class ProviderManager {
                     if (most * 1.0 / total >= 0.5) {
                         int nw = weight - 1;
                         logger.info("CalculateTask.nw2: {}", nw);
+                        weight = nw;
+                        clean(high);
                     }
                 }
                 logger.info("CalculateTask.current: {}", weight);

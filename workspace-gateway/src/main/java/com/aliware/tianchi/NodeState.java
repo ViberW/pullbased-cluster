@@ -31,7 +31,7 @@ public class NodeState {
                 long low = high - windowSize;
                 long[] ret = sum(low, high);
                 if (ret[0] > 0) {
-                    long newTimeout = (long) ((1 + ret[1] / ret[0]) * 1.2);
+                    long newTimeout = (long) ((1 + ret[1] / ret[0]) * 1.5);
                     newTimeout = (long) (timeout + (newTimeout - timeout) * ALPHA);
                     timeout = newTimeout;
                 }
