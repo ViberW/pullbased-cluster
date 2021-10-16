@@ -22,7 +22,7 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         //这里也需要来个限流策略
-        RpcContext.getClientAttachment().setAttachment(CommonConstants.TIMEOUT_KEY, NodeManager.state(invoker).timeout);
+        RpcContext.getClientAttachment().setAttachment(CommonConstants.TIMEOUT_KEY, NodeManager.state(invoker).getTimeout());
         invocation.setObjectAttachment(BEGIN, System.nanoTime());
         return invoker.invoke(invocation);
     }
@@ -35,8 +35,12 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         if (null != value) {
             state.setWeight((Integer) value);
         }
-//        value = appResponse.getObjectAttachment("d");
-        state.end(/*null != value ? Math.max(0, duration - (long) value)*/ duration /*: state.timeout*/);
+        value = appResponse.getObjectAttachment("d");
+        state.end(null != value ? Math.max(0, duration - (long) value) /*duration*/ : state.timeout);
+        value = appResponse.getObjectAttachment("e");
+        if (null != value) {
+            state.setExecuteTime((Integer)value);
+        }
     }
 
     @Override

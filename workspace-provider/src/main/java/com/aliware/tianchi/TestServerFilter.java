@@ -47,7 +47,8 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         long duration = System.nanoTime() - (long) invocation.getObjectAttachment(BEGIN);
         ProviderManager.time(duration, (long) invocation.getObjectAttachment(ACTIVE));
         appResponse.setObjectAttachment("w", ProviderManager.weight);
-//        appResponse.setObjectAttachment("d", duration);
+        appResponse.setObjectAttachment("d", duration);
+        appResponse.setObjectAttachment("e", ProviderManager.executeTime);
     }
 
     @Override

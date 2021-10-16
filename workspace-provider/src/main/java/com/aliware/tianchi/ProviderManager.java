@@ -8,13 +8,12 @@ import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
 import oshi.hardware.HardwareAbstractionLayer;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static java.lang.Math.exp;
 
 /**
  * @author Viber
@@ -32,8 +31,8 @@ public class ProviderManager {
     public static volatile int weight = 50;
 
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);
-    private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(8); //可以通过url参数携带进来, 这里就写死了
-    public static long lastAvg = okInterval;
+    /*private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(8);
+    public static long lastAvg = okInterval;*/
     private static final long windowSize = 5;
     private static final Counter<SumCounter> counter = new Counter<>(l -> new SumCounter());
     private static final Counter<SumCounter[]> counters = new Counter<>(l -> {
@@ -44,7 +43,7 @@ public class ProviderManager {
         return sumCounters;
     });
     public static final AtomicLong active = new AtomicLong(1);
-    private static final double ALPHA = 1 - exp(-1 / 5.0);
+//    private static final double ALPHA = 1 - exp(-1 / 5.0);
 
     public static void maybeInit(Invoker<?> invoker) {
         if (once) {
@@ -60,6 +59,7 @@ public class ProviderManager {
     }
 
     static long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 10;
+    static volatile int executeTime = 10;
 
     private static class CalculateTask implements Runnable {
         @Override
@@ -86,6 +86,7 @@ public class ProviderManager {
                 long[] tps = new long[7];
                 int maxIndex = 0;
                 long maxTps = 0;
+                int targetTime = executeTime;
                 for (int i = 0; i < 7; i++) {
                     if (counts[i] > 20) {
                         double avgTime = Math.max(1.0, ((durations[i] / counts[i]) / littleMillis) / 10.0); //保证1.x的时间
@@ -95,8 +96,12 @@ public class ProviderManager {
                             maxIndex = i;
                             maxTps = t;
                         }
+                        if (i == 3) {
+                            targetTime = (int) (1.5 * Math.ceil(avgTime));
+                        }
                     }
                 }
+                logger.info("CalculateTask:{} == {}", Arrays.toString(tps), Arrays.toString(counts));
                 //比较相关的信息, 查看能够处理到的数据量 处理前三后四的状态
                 long curTps = tps[3];
                 if (maxIndex > 3) {
@@ -113,9 +118,9 @@ public class ProviderManager {
                     if (most * 1.0 / total >= 0.5) {
                         int nw = weight + 1;
                         weight = nw;
-//                        clean(high);
-//                        long toKey = high - (windowSize << 1);
+                        logger.info("CalculateTask.nw1: {}", nw);
                         toKey = high;
+                        targetTime++;
                     }
                 } else if (maxIndex < 3) {
                     int total = 0;
@@ -131,11 +136,14 @@ public class ProviderManager {
                     if (most * 1.0 / total >= 0.5) {
                         int nw = weight - 1;
                         weight = nw;
-//                        clean(high);
+                        logger.info("CalculateTask.nw1: {}", nw);
                         toKey = high;
                     }
                 }
-                logger.info("CalculateTask.current: {}", weight);
+                //存放和合适的超时时间
+                int et = (executeTime + targetTime) / 2;
+                logger.info("CalculateTask.current: {} {} {}", weight, et, executeTime);
+                executeTime = et;
             }
             counter.clean(toKey);
 

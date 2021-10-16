@@ -18,13 +18,13 @@ import static java.lang.Math.exp;
 public class NodeState {
     private static final long timeInterval = TimeUnit.SECONDS.toMillis(1);
     private static final long oneMill = TimeUnit.MILLISECONDS.toNanos(1);
-    public volatile int avgTime = 1;
-    public volatile int weight = 100;
+    public volatile int weight = 50;
     private final Counter<StateCounter> counter = new Counter<>(o -> new StateCounter());
-    public volatile long timeout = 30L;
+    public volatile long timeout = 10L; //这个是延迟的时间
     private static final double ALPHA = 1 - exp(-1 / 5.0);//来自框架metrics的计算系数
     private final int windowSize = 5;
     private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
+    private volatile int executeTime = 10;
 
     public NodeState(ScheduledExecutorService scheduledExecutor) {
         scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
@@ -34,11 +34,11 @@ public class NodeState {
                 long low = high - windowSize;
                 long[] ret = sum(low, high);
                 if (ret[0] > 0) {
-                    long newTimeout = (long) ((1 + ret[1] / ret[0]) * 1.5);
+                    long newTimeout = ((1 + ret[1] / ret[0]));
                     long t = newTimeout;
                     newTimeout = (long) (timeout + (newTimeout - timeout) * ALPHA);
                     timeout = newTimeout;
-                    logger.info("NodeState:{} {}", newTimeout, t);
+                    logger.info("NodeState:{} {} {}", newTimeout + executeTime, t + executeTime, executeTime);
                 }
                 clean(high);
             }
@@ -53,6 +53,16 @@ public class NodeState {
         if (weight != w) {
             weight = w;
         }
+    }
+
+    public void setExecuteTime(int executeTime) {
+        if (this.executeTime != executeTime) {
+            this.executeTime = executeTime;
+        }
+    }
+
+    public long getTimeout() {
+        return timeout + 8;
     }
 
     public void end(long duration) {
