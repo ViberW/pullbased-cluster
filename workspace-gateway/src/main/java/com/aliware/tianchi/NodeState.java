@@ -1,9 +1,11 @@
 package com.aliware.tianchi;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static java.lang.Math.exp;
 
@@ -22,6 +24,7 @@ public class NodeState {
     public volatile long timeout = 30L;
     private static final double ALPHA = 1 - exp(-1 / 5.0);//来自框架metrics的计算系数
     private final int windowSize = 5;
+    private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
 
     public NodeState(ScheduledExecutorService scheduledExecutor) {
         scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
@@ -32,8 +35,10 @@ public class NodeState {
                 long[] ret = sum(low, high);
                 if (ret[0] > 0) {
                     long newTimeout = (long) ((1 + ret[1] / ret[0]) * 1.5);
+                    long t = newTimeout;
                     newTimeout = (long) (timeout + (newTimeout - timeout) * ALPHA);
                     timeout = newTimeout;
+                    logger.info("NodeState:{} {}", newTimeout, t);
                 }
                 clean(high);
             }

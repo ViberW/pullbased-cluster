@@ -8,7 +8,6 @@ import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
 import oshi.hardware.HardwareAbstractionLayer;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -81,6 +80,7 @@ public class ProviderManager {
                     }
                 });
             }
+            long toKey = high - (windowSize << 1);
             if (counts[3] > 100) { //才开始处理 todo 100
                 int[] weights = {weight - 3, weight - 2, weight - 1, weight, weight + 1, weight + 2, weight + 3};
                 long[] tps = new long[7];
@@ -97,7 +97,6 @@ public class ProviderManager {
                         }
                     }
                 }
-                logger.info("CalculateTask:{} == {}", Arrays.toString(tps), Arrays.toString(counts));
                 //比较相关的信息, 查看能够处理到的数据量 处理前三后四的状态
                 long curTps = tps[3];
                 if (maxIndex > 3) {
@@ -113,9 +112,10 @@ public class ProviderManager {
                     }
                     if (most * 1.0 / total >= 0.5) {
                         int nw = weight + 1;
-                        logger.info("CalculateTask.nw1: {}", nw);
                         weight = nw;
-                        clean(high);
+//                        clean(high);
+//                        long toKey = high - (windowSize << 1);
+                        toKey = high;
                     }
                 } else if (maxIndex < 3) {
                     int total = 0;
@@ -130,13 +130,14 @@ public class ProviderManager {
                     }
                     if (most * 1.0 / total >= 0.5) {
                         int nw = weight - 1;
-                        logger.info("CalculateTask.nw2: {}", nw);
                         weight = nw;
-                        clean(high);
+//                        clean(high);
+                        toKey = high;
                     }
                 }
                 logger.info("CalculateTask.current: {}", weight);
             }
+            counter.clean(toKey);
 
 
            /* long[] ret = sum(low, high);
@@ -157,8 +158,10 @@ public class ProviderManager {
                     lastAvg = avgTime;
                     weight = nw;
                 }
-            }*/
+            }
             clean(high);
+            */
+
         }
     }
 
