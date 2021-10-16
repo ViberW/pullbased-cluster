@@ -33,7 +33,7 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         if (null != value) {
             state.setWeight((Integer) value);
         }
-        value = appResponse.getObjectAttachment("d");
+//        value = appResponse.getObjectAttachment("d");
         state.end(null != value ? Math.max(0, duration - (long) value) : state.timeout);
     }
 

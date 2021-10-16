@@ -25,7 +25,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         long w = ProviderManager.weight;
         if (concurrent > w) {
             double r = ThreadLocalRandom.current().nextDouble(1);
-            if (r > 1.75 - (concurrent * 1.0 / w)) { //提高容忍度
+            if (r > 1.5 - (concurrent * 1.0 / w)) { //提高容忍度
                 throw new RpcException(RPCCode.FAST_FAIL,
                         "fast failure by provider to invoke method "
                                 + invocation.getMethodName() + " in provider " + invoker.getUrl());
@@ -47,7 +47,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         long duration = System.nanoTime() - (long) invocation.getObjectAttachment(BEGIN);
         ProviderManager.time(duration, (long) invocation.getObjectAttachment(ACTIVE));
         appResponse.setObjectAttachment("w", ProviderManager.weight);
-        appResponse.setObjectAttachment("d", duration);
+//        appResponse.setObjectAttachment("d", duration);
     }
 
     @Override
