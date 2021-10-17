@@ -199,7 +199,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                             logger.info("WaitCompletableFuture is null");
                         }
                     }catch (Exception e){
-                        logger.info("WaitCompletableFuture is null error");
+                        logger.info("WaitCompletableFuture is null error {}", e.getMessage());
                     }
                 }
                 //若是时间已经是很长的了, 就直接返回失败?
