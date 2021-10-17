@@ -52,6 +52,8 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             AsyncRpcResult rpcResult = new AsyncRpcResult(future, invocation);
             RpcContext.getServiceContext().setFuture(new FutureAdapter<>(future));
             return rpcResult;
+        } else {
+            logger.info("UserClusterInvoker.normal");
         }
         return result;
     }
@@ -202,6 +204,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                             : (AppResponse) appResponse);
                 } else {
                     if (System.currentTimeMillis() - start > time) {
+                        logger.info("UserClusterInvoker.timeout {}", time);
                         complete(new AppResponse(new RpcException(RpcException.TIMEOUT_EXCEPTION,
                                 "Invoke remote method timeout. method: " + invocation.getMethodName() + ", provider: " + getUrl())));
                         return;
@@ -215,6 +218,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                         Result r = doInvoked(invocation, invokers, loadbalance, invoker, true);
                         register((AsyncRpcResult) r);
                     } catch (Exception e) {
+                        logger.info("UserClusterInvoker.error");
                         complete(new AppResponse(e));
                     }
                 }
