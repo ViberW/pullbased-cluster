@@ -28,6 +28,7 @@ public class ProviderManager {
     private static volatile boolean once = true;
 
     public static volatile int weight = 50;
+    public static volatile int actualWeight = 50;
 
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);
     /*private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(8);
@@ -148,6 +149,7 @@ public class ProviderManager {
     }
 
     private static void resetWeight(int w) {
+        actualWeight = (int) (1.1 * w);
         weight = w;
     }
 

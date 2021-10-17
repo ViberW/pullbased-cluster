@@ -22,7 +22,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         long concurrent = ProviderManager.active.getAndIncrement();
         //达到服务端的最高水位的上限;
-        long w = ProviderManager.weight;
+        long w = ProviderManager.actualWeight;
         if (concurrent > w) {
             double r = ThreadLocalRandom.current().nextDouble(1);
             if (r > 1.5 - (concurrent * 1.0 / w)) { //提高容忍度
@@ -46,7 +46,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         ProviderManager.active.getAndDecrement();
         long duration = System.nanoTime() - (long) invocation.getObjectAttachment(BEGIN);
         ProviderManager.time(duration, (long) invocation.getObjectAttachment(ACTIVE));
-        appResponse.setObjectAttachment("w", ProviderManager.weight);
+        appResponse.setObjectAttachment("w", ProviderManager.actualWeight);
         appResponse.setObjectAttachment("d", duration);
         appResponse.setObjectAttachment("e", ProviderManager.executeTime);
     }
