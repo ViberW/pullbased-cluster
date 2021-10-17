@@ -29,13 +29,13 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
-        long duration = System.nanoTime() - (long) invocation.getObjectAttachment(BEGIN);
         NodeState state = NodeManager.state(invoker);
         Object value = appResponse.getObjectAttachment("w");
         if (null != value) {
             state.setWeight((Integer) value);
         }
         value = appResponse.getObjectAttachment("d");
+        long duration = System.nanoTime() - (long) invocation.getObjectAttachment(BEGIN);
         state.end(null != value ? Math.max(0, duration - (long) value) /*duration*/ : state.timeout);
         value = appResponse.getObjectAttachment("e");
         if (null != value) {

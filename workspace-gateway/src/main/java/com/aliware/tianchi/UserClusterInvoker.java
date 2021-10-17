@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
 import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
@@ -176,8 +177,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         final long time;
         long start;
         List<Invoker<T>> origin;
-        RpcContextAttachment tmpContext;
-        RpcContextAttachment tmpServerContext;
 
         public WaitCompletableFuture(LoadBalance loadbalance, Invocation invocation,
                                      Invoker<T> invoker, List<Invoker<T>> invokers) {
@@ -187,8 +186,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             this.invocation = invocation;
             time = invoker.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
             start = System.currentTimeMillis();
-            tmpContext = RpcContext.getClientAttachment();
-            tmpServerContext = RpcContext.getServerContext();
         }
 
         public void register(AsyncRpcResult result) {
@@ -196,7 +193,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 if (isDone()) {
                     return;
                 }
-                //如果是因为网络原因, 则需要重新试试. 否则就快速失败/
                 if ((null != appResponse && !appResponse.hasException())
                         || (invokers == null ? origin : invokers).size() <= 1) {
                     complete(null == appResponse ? new AppResponse(new RpcException(RPCCode.FAST_FAIL,
@@ -211,23 +207,16 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     if (invokers == null) {
                         invokers = new ArrayList<>(origin);
                     }
-                    if (invokers.size() == 1) {
+                    if (invokers.size() <= 1) {
                         return;
                     }
                     invokers.remove(invoker);
-                    RpcContextAttachment tc = RpcContext.getClientAttachment();
-                    RpcContextAttachment ts = RpcContext.getServerContext();
-                    RpcContext.restoreContext(tmpContext);
-                    RpcContext.restoreServerContext(tmpServerContext);
                     try {
                         invoker = select(loadbalance, invocation, invokers, null);
                         Result r = doInvoked(invocation, invokers, loadbalance, invoker, true);
                         register((AsyncRpcResult) r);
                     } catch (Exception e) {
                         complete(new AppResponse(e));
-                    } finally {
-                        RpcContext.restoreContext(tc);
-                        RpcContext.restoreServerContext(ts);
                     }
                 }
             });
