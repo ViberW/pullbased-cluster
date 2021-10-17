@@ -97,7 +97,7 @@ public class ProviderManager {
                             maxTps = t;
                         }
                         if (i == 3) {
-                            targetTime = (int) (Math.ceil(1.5 * avgTime));
+                            targetTime = (int) (Math.ceil(1.3 * avgTime));
                         }
                     }
                 }
@@ -135,7 +135,7 @@ public class ProviderManager {
                     }
                 }
                 //存放和合适的超时时间
-                resetExecuteTime(toKey == high ? targetTime + 1 : (executeTime + targetTime) / 2);
+                resetExecuteTime(executeTime + targetTime / 2);
             }
             counter.clean(toKey);
         }
@@ -143,6 +143,7 @@ public class ProviderManager {
     }
 
     private static void resetExecuteTime(int et) {
+        logger.info("resetExecuteTime :{} ", et);
         executeTime = et;
     }
 

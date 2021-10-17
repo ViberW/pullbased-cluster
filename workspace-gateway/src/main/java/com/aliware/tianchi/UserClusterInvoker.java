@@ -193,12 +193,10 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 if (isDone()) {
                     return;
                 }
+                //若是时间已经是很长的了, 就直接返回失败?
                 if ((null != appResponse && !appResponse.hasException())
+                        || (System.currentTimeMillis() - start > 2 * NodeManager.state(invoker).getTimeout())
                         || (invokers == null ? origin : invokers).size() <= 1) {
-                    if(null == appResponse){
-                        logger.info("failure error {}  {}", System.currentTimeMillis()- start,
-                                null==throwable? "": throwable.getMessage());
-                    }
                     complete(null == appResponse ? new AppResponse(new RpcException(RPCCode.FAST_FAIL,
                             "Invoke remote method fast failure. " + "provider: " + invocation.getInvoker().getUrl()))
                             : (AppResponse) appResponse);
@@ -211,16 +209,12 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     if (invokers == null) {
                         invokers = new ArrayList<>(origin);
                     }
-                    if (invokers.size() <= 1) {
-                        return;
-                    }
                     invokers.remove(invoker);
                     try {
                         invoker = select(loadbalance, invocation, invokers, null);
                         Result r = doInvoked(invocation, invokers, loadbalance, invoker, true);
                         register((AsyncRpcResult) r);
                     } catch (Exception e) {
-                        logger.info("net error{}", e.getMessage());
                         complete(new AppResponse(e));
                     }
                 }

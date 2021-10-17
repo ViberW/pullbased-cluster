@@ -35,6 +35,7 @@ public class NodeState {
                 long[] ret = sum(low, high);
                 if (ret[0] > 0) {
                     long newTimeout = ((1 + ret[1] / ret[0]));
+                    logger.info("NodeState :{}  {}", newTimeout, timeout);
                     newTimeout = /*(long) (timeout + (newTimeout - timeout) * ALPHA)*/ (newTimeout + timeout) / 2;
                     timeout = newTimeout;
                 }
