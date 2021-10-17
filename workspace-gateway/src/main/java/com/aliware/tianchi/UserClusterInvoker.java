@@ -195,7 +195,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 }
                 if(appResponse !=null && !appResponse.hasException()){
                     try {
-                        if(appResponse.get() == null){
+                        if(appResponse.getValue() == null){
                             logger.info("WaitCompletableFuture is null");
                         }
                     }catch (Exception e){
@@ -203,7 +203,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     }
                 }
                 //若是时间已经是很长的了, 就直接返回失败?
-                if ((null != appResponse && !appResponse.hasException())
+                if ((null != appResponse && !appResponse.hasException() && appResponse.getValue() == null)
                         || (System.currentTimeMillis() - start > 2 * NodeManager.state(invoker).getTimeout())
                         || (invokers == null ? origin : invokers).size() <= 1) {
                     complete(null == appResponse ? new AppResponse(new RpcException(RPCCode.FAST_FAIL,
