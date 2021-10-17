@@ -38,7 +38,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     protected Result doInvoke(Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
         //
         Invoker<T> invoker = this.select(loadbalance, invocation, invokers, null);
-        Result result = doInvoked(invocation, invokers, loadbalance, invoker);
+        Result result = doInvoked(invocation, invokers, loadbalance, invoker, false);
         if (result instanceof AsyncRpcResult) {
           /*  OnceCompletableFuture onceCompletableFuture = new OnceCompletableFuture(((AsyncRpcResult) result), invokers.size(), invocation);
             AsyncRpcResult rpcResult = new AsyncRpcResult(onceCompletableFuture, invocation);
@@ -55,7 +55,8 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         return result;
     }
 
-    private Result doInvoked(Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance, Invoker<T> invoker) {
+    private Result doInvoked(Invocation invocation, List<Invoker<T>> invokers,
+                             LoadBalance loadbalance, Invoker<T> invoker, boolean retry) {
         try {
             return invoker.invoke(invocation);
         } catch (RpcException e) {
@@ -63,10 +64,12 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 if (invokers.size() <= 1) {
                     throw e;
                 }
-                ArrayList<Invoker<T>> newInvokers = new ArrayList<>(invokers);
-                newInvokers.remove(invoker);
-                invoker = this.select(loadbalance, invocation, newInvokers, null);
-                return doInvoked(invocation, newInvokers, loadbalance, invoker);
+                if (!retry) {
+                    invokers = new ArrayList<>(invokers);
+                }
+                invokers.remove(invoker);
+                invoker = this.select(loadbalance, invocation, invokers, null);
+                return doInvoked(invocation, invokers, loadbalance, invoker, true);
             } else {
                 throw e;
             }
@@ -195,7 +198,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 }
                 //如果是因为网络原因, 则需要重新试试. 否则就快速失败/
                 if ((null != appResponse && !appResponse.hasException())
-                        || (invokers == null ? origin : invokers).size() == 1) {
+                        || (invokers == null ? origin : invokers).size() <= 1) {
                     complete(null == appResponse ? new AppResponse(new RpcException(RPCCode.FAST_FAIL,
                             "Invoke remote method fast failure. " + "provider: " + invocation.getInvoker().getUrl()))
                             : (AppResponse) appResponse);
@@ -207,7 +210,8 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     }
                     if (invokers == null) {
                         invokers = new ArrayList<>(origin);
-                    } else if (invokers.size() == 1) {
+                    }
+                    if (invokers.size() == 1) {
                         return;
                     }
                     invokers.remove(invoker);
@@ -217,7 +221,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     RpcContext.restoreServerContext(tmpServerContext);
                     try {
                         invoker = select(loadbalance, invocation, invokers, null);
-                        Result r = doInvoked(invocation, invokers, loadbalance, invoker);
+                        Result r = doInvoked(invocation, invokers, loadbalance, invoker, true);
                         register((AsyncRpcResult) r);
                     } catch (Exception e) {
                         complete(new AppResponse(e));

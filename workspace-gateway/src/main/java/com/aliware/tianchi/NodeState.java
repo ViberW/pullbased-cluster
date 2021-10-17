@@ -21,7 +21,7 @@ public class NodeState {
     public volatile int weight = 50;
     private final Counter<StateCounter> counter = new Counter<>(o -> new StateCounter());
     public volatile long timeout = 10L; //这个是延迟的时间
-    private static final double ALPHA = 1 - exp(-1 / 5.0);//来自框架metrics的计算系数
+    //    private static final double ALPHA = 1 - exp(-1 / 5.0);//来自框架metrics的计算系数
     private final int windowSize = 5;
     private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
     private volatile int executeTime = 10;
@@ -35,10 +35,8 @@ public class NodeState {
                 long[] ret = sum(low, high);
                 if (ret[0] > 0) {
                     long newTimeout = ((1 + ret[1] / ret[0]));
-                    long t = newTimeout;
-                    newTimeout = (long) (timeout + (newTimeout - timeout) * ALPHA);
+                    newTimeout = /*(long) (timeout + (newTimeout - timeout) * ALPHA)*/ (newTimeout + timeout) / 2;
                     timeout = newTimeout;
-                    logger.info("NodeState:{} {} {}", newTimeout + executeTime, t + executeTime, executeTime);
                 }
                 clean(high);
             }
@@ -62,7 +60,7 @@ public class NodeState {
     }
 
     public long getTimeout() {
-        return timeout + 8;
+        return timeout + executeTime;
     }
 
     public void end(long duration) {

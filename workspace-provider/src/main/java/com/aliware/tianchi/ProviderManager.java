@@ -8,7 +8,6 @@ import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
 import oshi.hardware.HardwareAbstractionLayer;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -58,8 +57,9 @@ public class ProviderManager {
         }
     }
 
-    static long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 10;
+    static final long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 10;
     static volatile int executeTime = 10;
+    static final int levelCount = 100; //能够支持统计tps的请求数
 
     private static class CalculateTask implements Runnable {
         @Override
@@ -81,16 +81,16 @@ public class ProviderManager {
                 });
             }
             long toKey = high - (windowSize << 1);
-            if (counts[3] > 100) { //才开始处理 todo 100
+            if (counts[3] > levelCount) {
                 int[] weights = {weight - 3, weight - 2, weight - 1, weight, weight + 1, weight + 2, weight + 3};
                 long[] tps = new long[7];
                 int maxIndex = 0;
                 long maxTps = 0;
                 int targetTime = executeTime;
                 for (int i = 0; i < 7; i++) {
-                    if (counts[i] > 20) {
-                        double avgTime = Math.max(1.0, ((durations[i] / counts[i]) / littleMillis) / 10.0); //保证1.x的时间
-                        long t = (long) ((1000.0 / avgTime) * weights[i]);
+                    if (counts[i] > levelCount) {
+                        double avgTime = Math.max(1.0, ((int) (((durations[i] / counts[i]) / littleMillis))) / 10.0); //保证1.x的时间
+                        long t = (long) ((1000.0 / avgTime) * weights[i]);//1s时间的tps
                         tps[i] = t;
                         if (maxTps < t) {
                             maxIndex = i;
@@ -101,8 +101,6 @@ public class ProviderManager {
                         }
                     }
                 }
-                logger.info("CalculateTask:{} == {}", Arrays.toString(tps), Arrays.toString(counts));
-                //比较相关的信息, 查看能够处理到的数据量 处理前三后四的状态
                 long curTps = tps[3];
                 if (maxIndex > 3) {
                     int total = 0;
@@ -116,9 +114,7 @@ public class ProviderManager {
                         }
                     }
                     if (most * 1.0 / total >= 0.5) {
-                        int nw = weight + 1;
-                        weight = nw;
-                        logger.info("CalculateTask.nw1: {}", nw);
+                        resetWeight(weight + 1);
                         toKey = high;
                         targetTime++;
                     }
@@ -134,43 +130,24 @@ public class ProviderManager {
                         }
                     }
                     if (most * 1.0 / total >= 0.5) {
-                        int nw = weight - 1;
-                        weight = nw;
-                        logger.info("CalculateTask.nw1: {}", nw);
+                        resetWeight(weight - 1);
                         toKey = high;
                     }
                 }
                 //存放和合适的超时时间
-                int et = (executeTime + targetTime) / 2;
-                logger.info("CalculateTask.current: {} {} {}", weight, et, executeTime);
-                executeTime = et;
+                resetExecuteTime(toKey == high ? targetTime + 1 : (executeTime + targetTime) / 2);
             }
             counter.clean(toKey);
-
-
-           /* long[] ret = sum(low, high);
-            if (ret[0] > 0) {
-                long avgTime = ret[2] / ret[0];
-                int concurrent = (int) (ret[1] / ret[0]);
-                int nw = weight;
-                if (avgTime > 0) {
-                    if (avgTime < okInterval) {
-                        if (concurrent > weight) {
-                            nw = (int) (weight + (concurrent - weight) * ALPHA);
-                        } else if (avgTime < okInterval * 0.8) {
-                            nw = Math.max(weight, concurrent) + 1;
-                        }
-                    } else if (avgTime >= lastAvg) {
-                        nw = Math.max(1, weight - 1);
-                    }
-                    lastAvg = avgTime;
-                    weight = nw;
-                }
-            }
-            clean(high);
-            */
-
         }
+
+    }
+
+    private static void resetExecuteTime(int et) {
+        executeTime = et;
+    }
+
+    private static void resetWeight(int w) {
+        weight = w;
     }
 
 
