@@ -135,7 +135,7 @@ public class ProviderManager {
                     }
                 }
                 //存放和合适的超时时间
-                resetExecuteTime(executeTime + targetTime / 2);
+                resetExecuteTime((executeTime + targetTime) / 2);
             }
             counter.clean(toKey);
         }
