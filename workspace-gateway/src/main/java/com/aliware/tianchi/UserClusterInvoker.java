@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
 import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
@@ -24,6 +25,7 @@ import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
  */
 public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     private final static Logger logger = LoggerFactory.getLogger(UserClusterInvoker.class);
+    static AtomicBoolean once = new AtomicBoolean(true);
 
     public UserClusterInvoker(Directory<T> directory) {
         super(directory);
@@ -79,6 +81,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         final long time;
         long start;
         List<Invoker<T>> origin;
+        AtomicBoolean success = new AtomicBoolean(false);
 
         public WaitCompletableFuture(LoadBalance loadbalance, Invocation invocation,
                                      Invoker<T> invoker, List<Invoker<T>> invokers) {
@@ -88,6 +91,30 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             this.invocation = invocation;
             time = invoker.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
             start = System.currentTimeMillis();
+            if (once.get()) {
+                this.whenComplete((appResponse, throwable) -> {
+                    if ((null != throwable || null == appResponse || appResponse.hasException())
+                            && System.currentTimeMillis() - start < 10) {
+                        if (once.compareAndSet(true, false)) {
+                            try {
+                                logger.info("WaitCompletableFuture when {} {} {} {}",
+                                        null != throwable ? throwable.getMessage() : "",
+                                        null != appResponse ? appResponse.getException() : "",
+                                        success.get(),
+                                        (invokers == null ? origin : invokers).size());
+                                StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+                                StringBuilder stringBuilder = new StringBuilder();
+                                for (int i = 0; i < Math.min(10, stackTrace.length); i++) {
+                                    stringBuilder.append(stackTrace[i].getClassName() + "." + stackTrace[i].getMethodName() + "." + stackTrace[i].getLineNumber());
+                                }
+                                logger.info("WaitCompletableFuture when stack:{}", stringBuilder.toString());
+                            } catch (Exception e) {
+                                logger.info("WaitCompletableFuture when error:{}", e.getMessage());
+                            }
+                        }
+                    }
+                });
+            }
         }
 
         public void register(AsyncRpcResult result) {
@@ -96,8 +123,21 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     return;
                 }
                 //这里为什么会存在 时间很短的返回呢? 请求的? 还是t和rep都存在?
-                if ((null != throwable && null != appResponse && !appResponse.hasException())
+                if ((/*null != throwable &&*/ null != appResponse && !appResponse.hasException())
                         || (invokers == null ? origin : invokers).size() <= 1) {
+                    success.set(true);
+                    if ((null != throwable || null == appResponse || appResponse.hasException())
+                            && System.currentTimeMillis() - start < 10) {
+                        try {
+                            logger.info("WaitCompletableFuture {} {} {} {}",
+                                    null != throwable ? throwable.getMessage() : "",
+                                    null != appResponse ? appResponse.getException() : "",
+                                    success.get(),
+                                    (invokers == null ? origin : invokers).size());
+                        } catch (Exception e) {
+                            logger.info("WaitCompletableFuture error {}", e.getMessage());
+                        }
+                    }
                     WaitCompletableFuture.this.complete(null == appResponse ? new AppResponse(new RpcException(RPCCode.FAST_FAIL,
                             "Invoke remote method fast failure. " + "provider: " + invocation.getInvoker().getUrl()))
                             : (AppResponse) appResponse);
