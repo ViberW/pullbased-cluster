@@ -25,7 +25,6 @@ import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
  */
 public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     private final static Logger logger = LoggerFactory.getLogger(UserClusterInvoker.class);
-    static AtomicBoolean once = new AtomicBoolean(true);
 
     public UserClusterInvoker(Directory<T> directory) {
         super(directory);
@@ -54,6 +53,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         } catch (RpcException e) {
             if (e.isNetwork()) {
                 if (invokers.size() <= 1) {
+                    logger.info("UserClusterInvoker==============\n1============================{}", e.getMessage());
                     throw e;
                 }
                 if (!retry) {
@@ -63,6 +63,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 invoker = this.select(loadbalance, invocation, invokers, null);
                 return doInvoked(invocation, invokers, loadbalance, invoker, true);
             } else {
+                logger.info("UserClusterInvoker==============\n2============================{}", e.getMessage());
                 throw e;
             }
         }
@@ -81,7 +82,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         final long time;
         long start;
         List<Invoker<T>> origin;
-        AtomicBoolean success = new AtomicBoolean(false);
 
         public WaitCompletableFuture(LoadBalance loadbalance, Invocation invocation,
                                      Invoker<T> invoker, List<Invoker<T>> invokers) {
@@ -91,30 +91,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             this.invocation = invocation;
             time = invoker.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
             start = System.currentTimeMillis();
-            if (once.get()) {
-                this.whenComplete((appResponse, throwable) -> {
-                    if ((null != throwable || null == appResponse || appResponse.hasException())
-                            && System.currentTimeMillis() - start < 10) {
-                        if (once.compareAndSet(true, false)) {
-                            try {
-                                logger.info("WaitCompletableFuture when {} {} {} {}",
-                                        null != throwable ? throwable.getMessage() : "",
-                                        null != appResponse ? appResponse.getException() : "",
-                                        success.get(),
-                                        (invokers == null ? origin : invokers).size());
-                                StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-                                StringBuilder stringBuilder = new StringBuilder();
-                                for (int i = 0; i < Math.min(10, stackTrace.length); i++) {
-                                    stringBuilder.append(stackTrace[i].getClassName() + "." + stackTrace[i].getMethodName() + "." + stackTrace[i].getLineNumber());
-                                }
-                                logger.info("WaitCompletableFuture when stack:{}", stringBuilder.toString());
-                            } catch (Exception e) {
-                                logger.info("WaitCompletableFuture when error:{}", e.getMessage());
-                            }
-                        }
-                    }
-                });
-            }
         }
 
         public void register(AsyncRpcResult result) {
@@ -125,15 +101,14 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 //这里为什么会存在 时间很短的返回呢? 请求的? 还是t和rep都存在?
                 if ((/*null != throwable &&*/ null != appResponse && !appResponse.hasException())
                         || (invokers == null ? origin : invokers).size() <= 1) {
-                    success.set(true);
                     if ((null != throwable || null == appResponse || appResponse.hasException())
                             && System.currentTimeMillis() - start < 10) {
                         try {
-                            logger.info("WaitCompletableFuture {} {} {} {}",
+                            logger.info("WaitCompletableFuture exp-{} axp-{} s1={} s2={}",
                                     null != throwable ? throwable.getMessage() : "",
                                     null != appResponse ? appResponse.getException() : "",
-                                    success.get(),
-                                    (invokers == null ? origin : invokers).size());
+                                    origin.size(),
+                                    invokers != null ? invokers.size() : 0);
                         } catch (Exception e) {
                             logger.info("WaitCompletableFuture error {}", e.getMessage());
                         }
@@ -156,6 +131,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                         Result r = doInvoked(invocation, invokers, loadbalance, invoker, true);
                         register((AsyncRpcResult) r);
                     } catch (Exception e) {
+                        logger.info("UserClusterInvoker==============\n3============================{}", e.getMessage());
                         WaitCompletableFuture.this.complete(new AppResponse(e));
                     }
                 }
