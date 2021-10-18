@@ -16,17 +16,17 @@ import static java.lang.Math.exp;
  * @since 2021/9/10 14:00
  */
 public class NodeState {
+    private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
     private static final long timeInterval = TimeUnit.SECONDS.toMillis(1);
     private static final long oneMill = TimeUnit.MILLISECONDS.toNanos(1);
     public volatile int weight = 50;
-    private final Counter<StateCounter> counter = new Counter<>(o -> new StateCounter());
-    public volatile long timeout = 10L; //这个是延迟的时间
-    private final int windowSize = 5;
-    private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
-    private volatile int executeTime = 10;
+//    private final Counter<StateCounter> counter = new Counter<>(o -> new StateCounter());
+//    public volatile long timeout = 10L; //这个是延迟的时间
+//    private final int windowSize = 5;
+    private volatile int executeTime = 20;
 
-    public NodeState(ScheduledExecutorService scheduledExecutor) {
-        scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
+    public NodeState(/*ScheduledExecutorService scheduledExecutor*/) {
+        /*scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
             @Override
             public void run() {
                 long high = offset();
@@ -39,7 +39,7 @@ public class NodeState {
                 }
                 clean(high);
             }
-        }, 5, 1, TimeUnit.SECONDS);
+        }, 5, 1, TimeUnit.SECONDS);*/
     }
 
     public int getWeight() {
@@ -59,10 +59,10 @@ public class NodeState {
     }
 
     public long getTimeout() {
-        return timeout + executeTime;
+        return /*timeout + */executeTime;
     }
 
-    public void end(long duration) {
+   /* public void end(long duration) {
         long offset = offset();
         StateCounter state = counter.get(offset);
         state.getDuration().add(duration / oneMill);
@@ -88,6 +88,6 @@ public class NodeState {
     public void clean(long high) {
         long toKey = high - (windowSize << 1);
         counter.clean(toKey);
-    }
+    }*/
 
 }

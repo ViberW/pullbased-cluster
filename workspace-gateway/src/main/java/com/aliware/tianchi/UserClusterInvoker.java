@@ -36,7 +36,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         Invoker<T> invoker = this.select(loadbalance, invocation, invokers, null);
         Result result = doInvoked(invocation, invokers, loadbalance, invoker, false);
         if (result instanceof AsyncRpcResult) {
-
             WaitCompletableFuture future = new WaitCompletableFuture(loadbalance, invocation, invoker, invokers);
             future.register((AsyncRpcResult) result);
             AsyncRpcResult rpcResult = new AsyncRpcResult(future, invocation);
@@ -53,7 +52,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         } catch (RpcException e) {
             if (e.isNetwork()) {
                 if (invokers.size() <= 1) {
-                    logger.info("UserClusterInvoker==============\n1============================{}", e.getMessage());
                     throw e;
                 }
                 if (!retry) {
@@ -63,7 +61,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 invoker = this.select(loadbalance, invocation, invokers, null);
                 return doInvoked(invocation, invokers, loadbalance, invoker, true);
             } else {
-                logger.info("UserClusterInvoker==============\n2============================{}", e.getMessage());
                 throw e;
             }
         }
@@ -99,20 +96,8 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     return;
                 }
                 //这里为什么会存在 时间很短的返回呢? 请求的? 还是t和rep都存在?
-                if ((/*null != throwable &&*/ null != appResponse && !appResponse.hasException())
+                if ((null != appResponse && !appResponse.hasException())
                         || (invokers == null ? origin : invokers).size() <= 1) {
-                    if ((null != throwable || null == appResponse || appResponse.hasException())
-                            && System.currentTimeMillis() - start < 10) {
-                        try {
-                            logger.info("WaitCompletableFuture exp-{} axp-{} s1={} s2={}",
-                                    null != throwable ? throwable.getMessage() : "",
-                                    null != appResponse ? appResponse.getException() : "",
-                                    origin.size(),
-                                    invokers != null ? invokers.size() : 0);
-                        } catch (Exception e) {
-                            logger.info("WaitCompletableFuture error {}", e.getMessage());
-                        }
-                    }
                     WaitCompletableFuture.this.complete(null == appResponse ? new AppResponse(new RpcException(RPCCode.FAST_FAIL,
                             "Invoke remote method fast failure. " + "provider: " + invocation.getInvoker().getUrl()))
                             : (AppResponse) appResponse);

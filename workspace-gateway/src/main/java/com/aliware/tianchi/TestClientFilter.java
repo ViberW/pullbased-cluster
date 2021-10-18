@@ -17,13 +17,11 @@ import java.util.concurrent.ThreadLocalRandom;
 @Activate(group = CommonConstants.CONSUMER)
 public class TestClientFilter implements Filter, BaseFilter.Listener {
 
-    private static final String BEGIN = "_time_begin";
-
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         //这里也需要来个限流策略
         RpcContext.getClientAttachment().setAttachment(CommonConstants.TIMEOUT_KEY, NodeManager.state(invoker).getTimeout());
-        invocation.setObjectAttachment(BEGIN, System.nanoTime());
+        invocation.setObjectAttachment(RPCCode.BEGIN, System.currentTimeMillis());
         return invoker.invoke(invocation);
     }
 
@@ -34,23 +32,23 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         if (null != value) {
             state.setWeight((Integer) value);
         }
-        value = appResponse.getObjectAttachment("d");
-        long duration = System.nanoTime() - (long) invocation.getObjectAttachment(BEGIN);
-        state.end(null != value ? Math.max(0, duration - (long) value) /*duration*/ : state.timeout);
+     /*   value = appResponse.getObjectAttachment("d");
+        long duration = System.nanoTime() - (long) invocation.getObjectAttachment(RPCCode.BEGIN);
+        state.end(null != value ? Math.max(0, duration - (long) value) *//*duration*//* : state.timeout);*/
         value = appResponse.getObjectAttachment("e");
         if (null != value) {
-            state.setExecuteTime((Integer)value);
+            state.setExecuteTime((Integer) value);
         }
     }
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
-        if (t instanceof CompletionException) {
+       /* if (t instanceof CompletionException) {
             t = ((CompletionException) t).getCause();
         }
         if (t instanceof TimeoutException) {
             NodeState state = NodeManager.state(invoker);
             state.end(state.timeout);
-        }
+        }*/
     }
 }

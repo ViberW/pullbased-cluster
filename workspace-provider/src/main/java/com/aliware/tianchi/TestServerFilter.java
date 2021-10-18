@@ -20,6 +20,13 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        //查看超时时间是否超过阈值, 快速失败
+        Long attachment = (Long) invocation.getObjectAttachment(CommonConstants.TIMEOUT_KEY);
+        if (System.currentTimeMillis() - (Long) invocation.getObjectAttachment(RPCCode.BEGIN) > attachment) {
+            throw new RpcException(RPCCode.FAST_FAIL, "fast failure by provider timeout to invoke method "
+                    + invocation.getMethodName() + " in provider " + invoker.getUrl());//快速失败掉因为时间已经不足的请求
+        }
+
         long concurrent = ProviderManager.active.getAndIncrement();
         //达到服务端的最高水位的上限;
         long w = ProviderManager.actualWeight;
@@ -47,7 +54,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         long duration = System.nanoTime() - (long) invocation.getObjectAttachment(BEGIN);
         ProviderManager.time(duration, (long) invocation.getObjectAttachment(ACTIVE));
         appResponse.setObjectAttachment("w", ProviderManager.actualWeight);
-        appResponse.setObjectAttachment("d", duration);
+//        appResponse.setObjectAttachment("d", duration);
         appResponse.setObjectAttachment("e", ProviderManager.executeTime);
     }
 
