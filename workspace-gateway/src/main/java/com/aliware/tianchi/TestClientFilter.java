@@ -19,7 +19,6 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        //这里也需要来个限流策略
         RpcContext.getClientAttachment().setAttachment(CommonConstants.TIMEOUT_KEY, NodeManager.state(invoker).getTimeout());
         invocation.setObjectAttachment(RPCCode.BEGIN, System.currentTimeMillis());
         return invoker.invoke(invocation);
@@ -43,12 +42,9 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
-       /* if (t instanceof CompletionException) {
+        if (t instanceof CompletionException) {
             t = ((CompletionException) t).getCause();
         }
-        if (t instanceof TimeoutException) {
-            NodeState state = NodeManager.state(invoker);
-            state.end(state.timeout);
-        }*/
+        NodeManager.state(invoker).end(t instanceof TimeoutException && ((TimeoutException) t).isClientSide());
     }
 }

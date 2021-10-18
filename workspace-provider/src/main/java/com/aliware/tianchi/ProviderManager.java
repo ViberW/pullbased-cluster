@@ -149,7 +149,7 @@ public class ProviderManager {
     }
 
     private static void resetWeight(int w) {
-        actualWeight = (int) (1.2 * w);
+        actualWeight = (int) (1.1 * w);
         weight = w;
     }
 
