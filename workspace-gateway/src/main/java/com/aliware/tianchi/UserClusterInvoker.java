@@ -95,7 +95,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 if (WaitCompletableFuture.this.isDone()) {
                     return;
                 }
-                //这里为什么会存在 时间很短的返回呢? 请求的? 还是t和rep都存在?
                 if ((null != appResponse && !appResponse.hasException())
                         || (invokers == null ? origin : invokers).size() <= 1) {
                     WaitCompletableFuture.this.complete(null == appResponse ? new AppResponse(new RpcException(RPCCode.FAST_FAIL,
@@ -116,7 +115,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                         Result r = doInvoked(invocation, invokers, loadbalance, invoker, true);
                         register((AsyncRpcResult) r);
                     } catch (Exception e) {
-                        logger.info("UserClusterInvoker==============\n3============================{}", e.getMessage());
                         WaitCompletableFuture.this.complete(new AppResponse(e));
                     }
                 }

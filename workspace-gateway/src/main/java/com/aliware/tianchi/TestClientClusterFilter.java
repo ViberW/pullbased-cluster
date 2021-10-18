@@ -15,8 +15,9 @@ import org.apache.dubbo.rpc.cluster.filter.ClusterFilter;
 public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listener {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        //进行一定程度的限流-- 1.5倍率的weight?
         try {
-            //添加标签属性, 要求添加标签, 若是存在当前的标签, 则从result中获取到响应的属性值, 这里决定是否添加某个invoker?
+
             return invoker.invoke(invocation);
         } catch (Exception e) {
             throw e;
