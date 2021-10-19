@@ -149,7 +149,8 @@ public class ProviderManager {
 
     private static void resetWeight(int w) {
         capacity = (int) (1.2 * w);
-        actualWeight = new Semaphore(capacity);
+        Semaphore semaphore = new Semaphore(capacity);
+        actualWeight = semaphore;
         weight = w;
     }
 
