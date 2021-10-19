@@ -31,13 +31,14 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         if (null != value) {
             state.setWeight((Integer) value);
         }
-     /*   value = appResponse.getObjectAttachment("d");
-        long duration = System.nanoTime() - (long) invocation.getObjectAttachment(RPCCode.BEGIN);
-        state.end(null != value ? Math.max(0, duration - (long) value) *//*duration*//* : state.timeout);*/
+//        value = appResponse.getObjectAttachment("d");
+//        long duration = System.nanoTime() - (long) invocation.getObjectAttachment(RPCCode.BEGIN);
+//        state.end(null != value ? Math.max(0, duration - (long) value) : state.timeout);
         value = appResponse.getObjectAttachment("e");
         if (null != value) {
             state.setExecuteTime((Integer) value);
         }
+        state.end(false);
     }
 
     @Override
@@ -45,6 +46,6 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         if (t instanceof CompletionException) {
             t = ((CompletionException) t).getCause();
         }
-        NodeManager.state(invoker).end(t instanceof TimeoutException && ((TimeoutException) t).isClientSide());
+        NodeManager.state(invoker).end(t instanceof TimeoutException);
     }
 }

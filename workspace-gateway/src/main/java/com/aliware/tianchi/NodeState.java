@@ -24,7 +24,7 @@ public class NodeState {
     //    public volatile long timeout = 10L; //这个是延迟的时间
     private final int windowSize = 5;
     private volatile int executeTime = 20;
-    private volatile double failureRatio = 0;
+    private volatile double okRatio = 1;
 //    private static final double ALPHA = 1 - exp(-1 / 60.0);//来自框架metrics的计算系数
 
     public NodeState(ScheduledExecutorService scheduledExecutor) {
@@ -36,9 +36,9 @@ public class NodeState {
                 long[] ret = sum(low, high);
                 if (ret[0] > 0) {
                     double newRatio = ret[1] * 1.0 / ret[0];
-                    newRatio = /*(failureRatio + (newRatio - failureRatio) * ALPHA)*/(newRatio + failureRatio) / 2;
-                    failureRatio = Math.max(0, newRatio);
-                    logger.info("NodeState:{}", failureRatio);
+                    newRatio = /*(failureRatio + (newRatio - failureRatio) * ALPHA)*/((1 - newRatio) + okRatio) / 2;
+                    okRatio = Math.max(1, newRatio);
+                    logger.info("NodeState:{}", okRatio);
                 }
                 clean(high);
             }
@@ -46,7 +46,7 @@ public class NodeState {
     }
 
     public int getWeight() {
-        return Math.max(1, (int) (weight * (1 - failureRatio)));
+        return Math.max(1, (int) (weight * okRatio));
     }
 
     public void setWeight(int w) {
@@ -94,5 +94,4 @@ public class NodeState {
         long toKey = high - (windowSize << 1);
         counter.clean(toKey);
     }
-
 }

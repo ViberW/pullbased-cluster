@@ -28,11 +28,8 @@ public class ProviderManager {
     private static volatile boolean once = true;
 
     public static volatile int weight = 50;
-    public static volatile int actualWeight = 50;
 
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);
-    /*private static final long okInterval = TimeUnit.MILLISECONDS.toNanos(8);
-    public static long lastAvg = okInterval;*/
     private static final long windowSize = 5;
     private static final Counter<SumCounter> counter = new Counter<>(l -> new SumCounter());
     private static final Counter<SumCounter[]> counters = new Counter<>(l -> {
@@ -43,7 +40,6 @@ public class ProviderManager {
         return sumCounters;
     });
     public static final AtomicLong active = new AtomicLong(1);
-//    private static final double ALPHA = 1 - exp(-1 / 5.0);
 
     public static void maybeInit(Invoker<?> invoker) {
         if (once) {
@@ -149,17 +145,12 @@ public class ProviderManager {
     }
 
     private static void resetWeight(int w) {
-        actualWeight = (int) (1.1 * w);
         weight = w;
     }
 
 
     public static void time(long duration, long concurrent) {
         long offset = offset();
-        /* SumCounter c = counter.get(offset);
-        c.getTotal().add(1);
-        c.getConcurrent().add(concurrent);
-        c.getDuration().add(duration);*/
         SumCounter[] sumCounters = counters.get(offset);
         long w = weight;
         if (Math.abs(concurrent - w) <= 3) { //说明需要调整到对应的位置上去
@@ -171,24 +162,6 @@ public class ProviderManager {
 
     public static long offset() {
         return System.nanoTime() / timeInterval;
-    }
-
-    private static long[] sum(long fromOffset, long toOffset) {
-        long[] result = {0, 0, 0};
-        Collection<SumCounter> sub = counter.sub(fromOffset, toOffset);
-        if (!sub.isEmpty()) {
-            sub.forEach(state -> {
-                result[0] += state.getTotal().sum();
-                result[1] += state.getConcurrent().sum();
-                result[2] += state.getDuration().sum();
-            });
-        }
-        return result;
-    }
-
-    public static void clean(long high) {
-        long toKey = high - (windowSize << 1);
-        counter.clean(toKey);
     }
 
     private static double calculateMemory() {

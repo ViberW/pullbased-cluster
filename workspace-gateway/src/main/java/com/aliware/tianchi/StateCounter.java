@@ -11,8 +11,8 @@ import java.util.concurrent.atomic.LongAdder;
 public class StateCounter {
 
     private LongAdder total = new LongAdder();
-//    private LongAdder duration = new LongAdder();
-private LongAdder failure = new LongAdder();
+    //    private LongAdder duration = new LongAdder();
+    private LongAdder failure = new LongAdder();
 
     public LongAdder getTotal() {
         return total;
