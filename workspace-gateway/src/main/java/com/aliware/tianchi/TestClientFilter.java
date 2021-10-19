@@ -38,14 +38,9 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         if (null != value) {
             state.setExecuteTime((Integer) value);
         }
-        state.end(false);
     }
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
-        if (t instanceof CompletionException) {
-            t = ((CompletionException) t).getCause();
-        }
-        NodeManager.state(invoker).end(t instanceof TimeoutException);
     }
 }

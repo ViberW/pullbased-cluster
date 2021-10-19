@@ -5,6 +5,8 @@ import org.apache.dubbo.common.extension.Activate;
 import org.apache.dubbo.rpc.*;
 import org.apache.dubbo.rpc.cluster.filter.ClusterFilter;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 /**
  * 客户端过滤器（选址前）
  * 可选接口
@@ -28,6 +30,5 @@ public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listen
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
-
     }
 }

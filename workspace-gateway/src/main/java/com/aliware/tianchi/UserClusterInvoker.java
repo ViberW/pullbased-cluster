@@ -1,5 +1,6 @@
 package com.aliware.tianchi;
 
+import org.apache.dubbo.remoting.RemotingException;
 import org.apache.dubbo.rpc.*;
 import org.apache.dubbo.rpc.cluster.Directory;
 import org.apache.dubbo.rpc.cluster.LoadBalance;
@@ -94,6 +95,18 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             result.whenCompleteWithContext((appResponse, throwable) -> {
                 if (WaitCompletableFuture.this.isDone()) {
                     return;
+                }
+                if (null != throwable) {
+                    if (throwable instanceof CompletionException) {
+                        throwable = ((CompletionException) throwable).getCause();
+                    }
+                    if (throwable instanceof RemotingException) {
+                        WaitCompletableFuture.this.complete(null == appResponse ?
+                                new AppResponse(new RpcException(RPCCode.FAST_FAIL,
+                                        "Invoke remote method fast failure. " + "provider: " + invocation.getInvoker().getUrl()))
+                                : (AppResponse) appResponse);
+                        return;
+                    }
                 }
                 if ((null != appResponse && !appResponse.hasException())
                         || (invokers == null ? origin : invokers).size() <= 1) {

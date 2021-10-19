@@ -6,8 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import static java.lang.Math.exp;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Viber
@@ -16,37 +15,34 @@ import static java.lang.Math.exp;
  * @since 2021/9/10 14:00
  */
 public class NodeState {
-    private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
-    private static final long timeInterval = TimeUnit.SECONDS.toMillis(1);
-    private static final long oneMill = TimeUnit.MILLISECONDS.toNanos(1);
+    //    private static final long timeInterval = TimeUnit.SECONDS.toMillis(1);
+//    private static final long oneMill = TimeUnit.MILLISECONDS.toNanos(1);
     public volatile int weight = 50;
-    private final Counter<StateCounter> counter = new Counter<>(o -> new StateCounter());
-    //    public volatile long timeout = 10L; //这个是延迟的时间
+    //    private final Counter<StateCounter> counter = new Counter<>(o -> new StateCounter());
+//    public volatile long timeout = 10L;
     private final int windowSize = 5;
-    private volatile int executeTime = 20;
-    private volatile double okRatio = 1;
-//    private static final double ALPHA = 1 - exp(-1 / 60.0);//来自框架metrics的计算系数
+    private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
+    private volatile int executeTime = 10;
 
-    public NodeState(ScheduledExecutorService scheduledExecutor) {
-        scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
+    public NodeState(/*ScheduledExecutorService scheduledExecutor*/) {
+        /*scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
             @Override
             public void run() {
                 long high = offset();
                 long low = high - windowSize;
                 long[] ret = sum(low, high);
                 if (ret[0] > 0) {
-                    double newRatio = ret[1] * 1.0 / ret[0];
-                    newRatio = /*(failureRatio + (newRatio - failureRatio) * ALPHA)*/((1 - newRatio) + okRatio) / 2;
-                    okRatio = Math.max(1, newRatio);
-                    logger.info("NodeState:{}", okRatio);
+                    long newTimeout = ((1 + ret[1] / ret[0]));
+                    newTimeout = *//*(long) (timeout + (newTimeout - timeout) * ALPHA)*//* (newTimeout + timeout) / 2;
+                    timeout = newTimeout;
                 }
                 clean(high);
             }
-        }, 5, 1, TimeUnit.SECONDS);
+        }, 5, 1, TimeUnit.SECONDS);*/
     }
 
     public int getWeight() {
-        return Math.max(1, (int) (weight * okRatio));
+        return Math.max(1, weight);
     }
 
     public void setWeight(int w) {
@@ -62,16 +58,14 @@ public class NodeState {
     }
 
     public long getTimeout() {
-        return /*timeout + */executeTime;
+        return /*timeout +*/ executeTime;
     }
 
-    public void end(boolean f) {
+  /*  public void end(long duration) {
         long offset = offset();
         StateCounter state = counter.get(offset);
+        state.getDuration().add(duration / oneMill);
         state.getTotal().add(1);
-        if (f) {
-            state.getFailure().add(1);
-        }
     }
 
     public long[] sum(long fromOffset, long toOffset) {
@@ -80,7 +74,7 @@ public class NodeState {
         if (!sub.isEmpty()) {
             sub.forEach(state -> {
                 result[0] += state.getTotal().sum();
-                result[1] += state.getFailure().sum();
+                result[1] += state.getDuration().sum();
             });
         }
         return result;
@@ -93,5 +87,5 @@ public class NodeState {
     public void clean(long high) {
         long toKey = high - (windowSize << 1);
         counter.clean(toKey);
-    }
+    }*/
 }

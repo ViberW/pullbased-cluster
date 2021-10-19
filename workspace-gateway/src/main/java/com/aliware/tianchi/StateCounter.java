@@ -11,8 +11,7 @@ import java.util.concurrent.atomic.LongAdder;
 public class StateCounter {
 
     private LongAdder total = new LongAdder();
-    //    private LongAdder duration = new LongAdder();
-    private LongAdder failure = new LongAdder();
+    private LongAdder duration = new LongAdder();
 
     public LongAdder getTotal() {
         return total;
@@ -22,18 +21,11 @@ public class StateCounter {
         this.total = total;
     }
 
-    public LongAdder getFailure() {
-        return failure;
+    public LongAdder getDuration() {
+        return duration;
     }
 
-    public void setFailure(LongAdder failure) {
-        this.failure = failure;
+    public void setDuration(LongAdder duration) {
+        this.duration = duration;
     }
-//    public LongAdder getDuration() {
-//        return duration;
-//    }
-//
-//    public void setDuration(LongAdder duration) {
-//        this.duration = duration;
-//    }
 }

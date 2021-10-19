@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author Viber
@@ -18,11 +20,12 @@ public class NodeManager {
 
     //帮助定期的减少Node的信息
     private static final Map<String, NodeState> STATES = new ConcurrentHashMap<>();
-    private static ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+    //    private static ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+
 
     public static NodeState state(Invoker<?> invoker) {
 //        String uri = invoker.getUrl().toIdentityString();
-        return STATES.computeIfAbsent(buildString(invoker), s -> new NodeState(scheduledExecutor));
+        return STATES.computeIfAbsent(buildString(invoker), s -> new NodeState(/*scheduledExecutor*/));
     }
 
 
