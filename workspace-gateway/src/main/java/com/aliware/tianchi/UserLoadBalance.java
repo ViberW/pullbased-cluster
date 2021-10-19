@@ -8,7 +8,6 @@ import org.apache.dubbo.rpc.cluster.LoadBalance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -25,15 +24,14 @@ public class UserLoadBalance implements LoadBalance {
     public <T> Invoker<T> select(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
         int size = invokers.size();
         int[] serviceWeight = new int[size];
-        long totalWeight = 0;
+        int totalWeight = 0;
         int weight;
         for (int index = 0; index < size; ++index) {
-            Invoker<T> invoker = invokers.get(index);
-            weight = NodeManager.state(invoker).getWeight();
+            weight = NodeManager.state(invokers.get(index)).getWeight();
             serviceWeight[index] = weight;
             totalWeight += weight;
         }
-        long expect = ThreadLocalRandom.current().nextLong(totalWeight);
+        int expect = ThreadLocalRandom.current().nextInt(totalWeight);
         for (int i = 0; i < size; ++i) {
             expect -= serviceWeight[i];
             if (expect < 0) {

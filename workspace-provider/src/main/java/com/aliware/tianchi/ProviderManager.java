@@ -28,7 +28,6 @@ public class ProviderManager {
     private static volatile boolean once = true;
 
     public static volatile int weight = 50;
-    public static volatile int actualWeight = 55;
 
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);
     private static final long windowSize = 5;
@@ -147,7 +146,6 @@ public class ProviderManager {
 
     private static void resetWeight(int w) {
         logger.info("resetWeight:{}", w);
-        actualWeight = (int) (1.1 * w);
         weight = w;
     }
 
