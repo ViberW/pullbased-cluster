@@ -87,7 +87,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             this.origin = invokers;
             this.loadbalance = loadbalance;
             this.invocation = invocation;
-            time = 2 * NodeManager.state(invoker).getTimeout();
+            time = invoker.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
             start = System.currentTimeMillis();
         }
 
@@ -97,28 +97,20 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     return;
                 }
                 if ((null != appResponse && !appResponse.hasException())
-                        || (System.currentTimeMillis() - start) > time
                         || (invokers == null ? origin : invokers).size() <= 1) {
                     WaitCompletableFuture.this.complete(null == appResponse ? new AppResponse(new RpcException(RPCCode.FAST_FAIL,
                             "Invoke remote method fast failure. " + "provider: " + invocation.getInvoker().getUrl()))
                             : (AppResponse) appResponse);
                 } else {
-                    /*if (System.currentTimeMillis() - start > time) {
+                    if (System.currentTimeMillis() - start > time) {
                         WaitCompletableFuture.this.complete(new AppResponse(new RpcException(RpcException.TIMEOUT_EXCEPTION,
                                 "Invoke remote method timeout. method: " + invocation.getMethodName() + ", provider: " + getUrl())));
                         return;
-                    }*/
+                    }
                     if (invokers == null) {
                         invokers = new ArrayList<>(origin);
                     }
-                    if (null != throwable) {
-                        if (throwable instanceof CompletionException) {
-                            throwable = ((CompletionException) throwable).getCause();
-                        }
-                        if (throwable instanceof TimeoutException) { //网络延迟,去除掉
-                            invokers.remove(invoker);
-                        }
-                    }
+                    invokers.remove(invoker);
                     try {
                         invoker = select(loadbalance, invocation, invokers, null);
                         Result r = doInvoked(invocation, invokers, loadbalance, invoker, true);
@@ -129,6 +121,5 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 }
             });
         }
-
     }
 }
