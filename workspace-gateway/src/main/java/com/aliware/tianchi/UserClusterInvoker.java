@@ -1,6 +1,6 @@
 package com.aliware.tianchi;
 
-import org.apache.dubbo.remoting.RemotingException;
+import org.apache.dubbo.remoting.TimeoutException;
 import org.apache.dubbo.rpc.*;
 import org.apache.dubbo.rpc.cluster.Directory;
 import org.apache.dubbo.rpc.cluster.LoadBalance;
@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
 import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
@@ -81,13 +80,14 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         long start;
         List<Invoker<T>> origin;
 
+
         public WaitCompletableFuture(LoadBalance loadbalance, Invocation invocation,
                                      Invoker<T> invoker, List<Invoker<T>> invokers) {
             this.invoker = invoker;
             this.origin = invokers;
             this.loadbalance = loadbalance;
             this.invocation = invocation;
-            time = invoker.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
+            time = 2 * NodeManager.state(invoker).getTimeout();
             start = System.currentTimeMillis();
         }
 
@@ -97,20 +97,28 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     return;
                 }
                 if ((null != appResponse && !appResponse.hasException())
+                        || (System.currentTimeMillis() - start) > time
                         || (invokers == null ? origin : invokers).size() <= 1) {
                     WaitCompletableFuture.this.complete(null == appResponse ? new AppResponse(new RpcException(RPCCode.FAST_FAIL,
                             "Invoke remote method fast failure. " + "provider: " + invocation.getInvoker().getUrl()))
                             : (AppResponse) appResponse);
                 } else {
-                    if (System.currentTimeMillis() - start > time) {
+                    /*if (System.currentTimeMillis() - start > time) {
                         WaitCompletableFuture.this.complete(new AppResponse(new RpcException(RpcException.TIMEOUT_EXCEPTION,
                                 "Invoke remote method timeout. method: " + invocation.getMethodName() + ", provider: " + getUrl())));
                         return;
-                    }
+                    }*/
                     if (invokers == null) {
                         invokers = new ArrayList<>(origin);
                     }
-                    invokers.remove(invoker);
+                    if (null != throwable) {
+                        if (throwable instanceof CompletionException) {
+                            throwable = ((CompletionException) throwable).getCause();
+                        }
+                        if (throwable instanceof TimeoutException) { //网络延迟,去除掉
+                            invokers.remove(invoker);
+                        }
+                    }
                     try {
                         invoker = select(loadbalance, invocation, invokers, null);
                         Result r = doInvoked(invocation, invokers, loadbalance, invoker, true);

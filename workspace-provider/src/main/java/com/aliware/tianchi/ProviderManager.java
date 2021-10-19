@@ -11,7 +11,6 @@ import oshi.hardware.HardwareAbstractionLayer;
 import java.util.Collection;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -29,8 +28,6 @@ public class ProviderManager {
     private static volatile boolean once = true;
 
     public static volatile int weight = 50;
-    public static volatile int capacity = (int) (1.2 * weight);
-    public static volatile Semaphore actualWeight = new Semaphore(capacity);
 
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);
     private static final long windowSize = 5;
@@ -143,14 +140,10 @@ public class ProviderManager {
     }
 
     private static void resetExecuteTime(int et) {
-        logger.info("resetExecuteTime :{} ", et);
         executeTime = et;
     }
 
     private static void resetWeight(int w) {
-        capacity = (int) (1.2 * w);
-        Semaphore semaphore = new Semaphore(capacity);
-        actualWeight = semaphore;
         weight = w;
     }
 
