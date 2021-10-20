@@ -80,7 +80,7 @@ public class ProviderManager {
             }
             long toKey = high - (windowSize << 1);
             if (counts[3] > levelCount) {
-                int[] weights = {weight - 3, weight - 2, weight - 1, weight, weight + 3, weight + 2, weight + 1};
+                int[] weights = {weight - 6, weight - 4, weight - 2, weight, weight + 2, weight + 4, weight + 6};
                 long[] tps = new long[7];
                 int maxIndex = 0;
                 long maxTps = 0;
@@ -114,7 +114,6 @@ public class ProviderManager {
                     if (most * 1.0 / total >= 0.5) {
                         resetWeight(weight + 1);
                         toKey = offset();
-                        targetTime++;
                     }
                 } else if (maxIndex < 3) {
                     int total = 0;
@@ -153,8 +152,8 @@ public class ProviderManager {
         long offset = offset();
         SumCounter[] sumCounters = counters.get(offset);
         long w = weight;
-        if (Math.abs(concurrent - w) <= 3) { //说明需要调整到对应的位置上去
-            SumCounter sumCounter = sumCounters[(int) (concurrent - w + 3)];
+        if (Math.abs(concurrent - w) <= 6) { //说明需要调整到对应的位置上去
+            SumCounter sumCounter = sumCounters[(int) (concurrent - w + 6) / 2];
             sumCounter.getTotal().add(1);
             sumCounter.getDuration().add(duration);
         }

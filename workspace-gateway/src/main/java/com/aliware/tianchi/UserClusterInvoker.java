@@ -35,7 +35,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         super(directory);
         checker = new HashedWheelTimer(
                 new NamedThreadFactory("user-cluster-check-timer", true),
-                20, TimeUnit.MILLISECONDS);
+                10, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -154,6 +154,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     WaitCompletableFuture.this.complete((AppResponse) appResponse);
                 } else if (timeout.cancel()) {
                     try {
+                        //手动执行.
                         timeout.task().run(timeout);
                     } catch (Throwable t) {
                         logger.warn("An exception was thrown by " + TimerTask.class.getSimpleName() + '.', t);
