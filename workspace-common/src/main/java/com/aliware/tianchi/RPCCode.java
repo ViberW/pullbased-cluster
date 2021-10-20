@@ -11,4 +11,5 @@ public class RPCCode {
     public static final int FAST_INTERRUPTED = 101;
 
     public static final String BEGIN = "_time_begin";
+    public static final String TIME_RATIO = "_time_ratio";
 }

@@ -19,7 +19,9 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        RpcContext.getClientAttachment().setAttachment(CommonConstants.TIMEOUT_KEY, NodeManager.state(invoker).getTimeout());
+        RpcContext.getClientAttachment().setAttachment(CommonConstants.TIMEOUT_KEY,
+                NodeManager.state(invoker).getTimeout()
+                        * (int) invocation.getObjectAttachment(RPCCode.TIME_RATIO, 1));
         invocation.setObjectAttachment(RPCCode.BEGIN, System.currentTimeMillis());
         return invoker.invoke(invocation);
     }
