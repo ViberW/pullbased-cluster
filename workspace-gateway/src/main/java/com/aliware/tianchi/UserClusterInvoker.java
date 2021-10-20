@@ -96,15 +96,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 if (WaitCompletableFuture.this.isDone()) {
                     return;
                 }
-                if (throwable != null) {
-                    if (throwable instanceof CompletionException) {
-                        throwable = ((CompletionException) throwable).getCause();
-                    }
-                    if (throwable instanceof TimeoutException) {
-                        logger.info("WaitCompletableFuture:{}#{}#{}", invoker.getUrl().getHost() + ":" + invoker.getUrl().getPort(),
-                                ((TimeoutException) throwable).isClientSide(), System.currentTimeMillis() - start);
-                    }
-                }
                 if ((null != appResponse && !appResponse.hasException())
                         || (invokers == null ? origin : invokers).size() <= 1) {
                     WaitCompletableFuture.this.complete(null == appResponse ? new AppResponse(new RpcException(RPCCode.FAST_FAIL,

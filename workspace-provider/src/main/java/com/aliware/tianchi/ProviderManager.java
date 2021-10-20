@@ -141,12 +141,10 @@ public class ProviderManager {
     }
 
     private static void resetExecuteTime(int et) {
-        logger.info("resetExecuteTime:{}", et);
         executeTime = et;
     }
 
     private static void resetWeight(int w) {
-        logger.info("resetWeight:{}", w);
         weight = w;
     }
 
