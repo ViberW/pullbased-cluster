@@ -44,15 +44,14 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         Invoker<T> invoker = this.select(loadbalance, invocation, invokers, null);
         Result result = doInvoked(invocation, invokers, loadbalance, invoker, false);
         if (result instanceof AsyncRpcResult) {
-            WaitCompletableFuture future = new WaitCompletableFuture(loadbalance, invocation, invoker, invokers);
-            future.register((AsyncRpcResult) result);
+            WaitCompletableFuture future = new WaitCompletableFuture();
             AsyncRpcResult rpcResult = new AsyncRpcResult(future, invocation);
             RpcContext.getServiceContext().setFuture(new FutureAdapter<>(future));
 
             //校验
-            future.timeout = checker.newTimeout(
+            future.register((AsyncRpcResult) result, checker.newTimeout(
                     new FutureTimeoutTask(loadbalance, invocation, future, invoker, invokers),
-                    NodeManager.state(invoker).getTimeout(), TimeUnit.MILLISECONDS);
+                    NodeManager.state(invoker).getTimeout(), TimeUnit.MILLISECONDS));
             return rpcResult;
         }
         return result;
@@ -135,76 +134,31 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             try {
                 invoker = select(loadbalance, invocation, invokers, null);
                 Result r = doInvoked(invocation, invokers, loadbalance, invoker, true);
-                waitCompletableFuture.register((AsyncRpcResult) r);
-                waitCompletableFuture.timeout = timeout.timer().newTimeout(timeout.task(),
-                        NodeManager.state(invoker).getTimeout(), TimeUnit.MILLISECONDS);
+                waitCompletableFuture.register((AsyncRpcResult) r, timeout.timer().newTimeout(timeout.task(),
+                        NodeManager.state(invoker).getTimeout(), TimeUnit.MILLISECONDS));
             } catch (Exception e) {
                 waitCompletableFuture.complete(new AppResponse(e));
             }
         }
     }
 
-    class WaitCompletableFuture extends CompletableFuture<AppResponse> {
-        //        Invoker<T> invoker;
-//        List<Invoker<T>> invokers;
-//        LoadBalance loadbalance;
-//        Invocation invocation;
-        //        final long time;
-//        long start;
-        //        List<Invoker<T>> origin;
-        Timeout timeout;
+    static class WaitCompletableFuture extends CompletableFuture<AppResponse> {
 
-        public WaitCompletableFuture(LoadBalance loadbalance, Invocation invocation,
-                                     Invoker<T> invoker, List<Invoker<T>> invokers) {
-//            this.invoker = invoker;
-//            this.origin = invokers;
-//            this.loadbalance = loadbalance;
-//            this.invocation = invocation;
-//            time = invoker.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
-//            start = System.currentTimeMillis();
-        }
-
-        public void register(AsyncRpcResult result) {
+        public void register(AsyncRpcResult result, Timeout timeout) {
             result.whenCompleteWithContext((appResponse, throwable) -> {
                 if (WaitCompletableFuture.this.isDone()) {
                     return;
                 }
-                if ((null != appResponse && !appResponse.hasException())
-                    /* || (task.invokers == null ? task.origin : task.invokers).size() <= 1*/
-                    /*|| (invokers == null ? origin : invokers).size() <= 1*/) {
-                    if (timeout != null) {
-
-                    }
-                    WaitCompletableFuture.this.complete(/*null == appResponse ? new AppResponse(new RpcException(RPCCode.FAST_FAIL,
-                            "Invoke remote method fast failure. " + "provider: " + task.invocation.getInvoker().getUrl()))
-                            :*/ (AppResponse) appResponse);
-                } else if (timeout != null) {
-                    if (!timeout.isExpired()) {
-                        if (timeout.cancel()) {
-                            try {
-                                timeout.task().run(timeout);
-                            } catch (Throwable t) {
-                                logger.warn("An exception was thrown by " + TimerTask.class.getSimpleName() + '.', t);
-                            }
-                        }
-                    }
-
-                    /*if (System.currentTimeMillis() - start > time) {
-                        WaitCompletableFuture.this.complete(new AppResponse(new RpcException(RpcException.TIMEOUT_EXCEPTION,
-                                "Invoke remote method timeout. method: " + invocation.getMethodName() + ", provider: " + getUrl())));
-                        return;
-                    }
-                    if (invokers == null) {
-                        invokers = new ArrayList<>(origin);
-                    }
-                    invokers.remove(invoker);
+                if ((null != appResponse && !appResponse.hasException())) {
+                    timeout.cancel();
+                    WaitCompletableFuture.this.complete((AppResponse) appResponse);
+                } else if (timeout.cancel()) {
                     try {
-                        invoker = select(loadbalance, invocation, invokers, null);
-                        Result r = doInvoked(invocation, invokers, loadbalance, invoker, true);
-                        register((AsyncRpcResult) r);
-                    } catch (Exception e) {
-                        WaitCompletableFuture.this.complete(new AppResponse(e));
-                    }*/
+                        timeout.task().run(timeout);
+                    } catch (Throwable t) {
+                        logger.warn("An exception was thrown by " + TimerTask.class.getSimpleName() + '.', t);
+                        WaitCompletableFuture.this.complete(new AppResponse(t));
+                    }
                 }
             });
         }
