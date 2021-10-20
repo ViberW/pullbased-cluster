@@ -29,7 +29,6 @@ public class ProviderManager {
     private static volatile boolean once = true;
 
     public static volatile int weight = 50;
-    public static volatile Semaphore limiter = new Semaphore((int) (0.1 * weight));
 
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);
     private static final long windowSize = 5;
@@ -149,7 +148,6 @@ public class ProviderManager {
     private static void resetWeight(int w) {
         logger.info("resetWeight:{}", w);
         weight = w;
-        limiter = new Semaphore(Math.max(1, (int) (w * 0.1)));
     }
 
 

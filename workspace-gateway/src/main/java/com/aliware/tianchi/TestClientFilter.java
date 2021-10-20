@@ -42,5 +42,6 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
+        //若是网络有延迟,
     }
 }

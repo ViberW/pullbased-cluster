@@ -1,5 +1,6 @@
 package com.aliware.tianchi;
 
+import org.apache.dubbo.remoting.TimeoutException;
 import org.apache.dubbo.rpc.*;
 import org.apache.dubbo.rpc.cluster.Directory;
 import org.apache.dubbo.rpc.cluster.LoadBalance;
@@ -11,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
 import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
@@ -93,6 +95,15 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             result.whenCompleteWithContext((appResponse, throwable) -> {
                 if (WaitCompletableFuture.this.isDone()) {
                     return;
+                }
+                if (throwable != null) {
+                    if (throwable instanceof CompletionException) {
+                        throwable = ((CompletionException) throwable).getCause();
+                    }
+                    if (throwable instanceof TimeoutException) {
+                        logger.info("WaitCompletableFuture:{}#{}#{}", invoker.getUrl().getHost() + ":" + invoker.getUrl().getPort(),
+                                ((TimeoutException) throwable).isClientSide(), System.currentTimeMillis() - start);
+                    }
                 }
                 if ((null != appResponse && !appResponse.hasException())
                         || (invokers == null ? origin : invokers).size() <= 1) {

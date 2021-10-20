@@ -4,9 +4,7 @@ import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
 import org.apache.dubbo.rpc.*;
 
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 服务端过滤器
@@ -19,7 +17,6 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
 
     private static final String BEGIN = "_provider_begin";
     private static final String ACTIVE = "_provider_active";
-    private static final String SEMAPHORE = "_provider_semaphore";
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
@@ -29,14 +26,9 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         if (concurrent > w) {
             double r = ThreadLocalRandom.current().nextDouble(1);
             if (r > 1.5 - (concurrent * 1.0 / w)) {
-                Semaphore semaphore = ProviderManager.limiter;
-                if (tryAcquire(semaphore, invocation)) {
-                    invocation.put(SEMAPHORE, semaphore);
-                } else {
-                    throw new RpcException(RPCCode.FAST_FAIL,
-                            "fast failure by provider to invoke method "
-                                    + invocation.getMethodName() + " in provider " + invoker.getUrl());
-                }
+                throw new RpcException(RPCCode.FAST_FAIL,
+                        "fast failure by provider to invoke method "
+                                + invocation.getMethodName() + " in provider " + invoker.getUrl());
             }
         }
         invocation.put(ACTIVE, concurrent);
@@ -48,21 +40,8 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         }
     }
 
-    private boolean tryAcquire(Semaphore semaphore, Invocation invocation) {
-        try {
-            long timeout = (long) invocation.getObjectAttachment(CommonConstants.TIMEOUT_KEY);
-            //尝试等待一定的时间
-            if (semaphore.tryAcquire(timeout / 2, TimeUnit.MILLISECONDS)) {
-                return true;
-            }
-        } catch (InterruptedException e) {
-        }
-        return false;
-    }
-
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
-        ((Semaphore) invocation.get(SEMAPHORE)).release();
         ProviderManager.active.getAndDecrement();
         ProviderManager.maybeInit(invoker);
         long duration = System.nanoTime() - (long) invocation.get(BEGIN);
@@ -74,7 +53,6 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
-        ((Semaphore) invocation.get(SEMAPHORE)).release();
         ProviderManager.active.getAndDecrement();
     }
 }
