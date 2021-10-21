@@ -1,6 +1,5 @@
 package com.aliware.tianchi;
 
-import org.apache.dubbo.common.timer.HashedWheelTimer;
 import org.apache.dubbo.common.timer.Timeout;
 import org.apache.dubbo.common.timer.Timer;
 import org.apache.dubbo.common.timer.TimerTask;
@@ -33,9 +32,9 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
     public UserClusterInvoker(Directory<T> directory) {
         super(directory);
-        checker = new HashedWheelTimer(
+        checker = new PooledTimer(
                 new NamedThreadFactory("user-cluster-check-timer", true),
-                10, TimeUnit.MILLISECONDS);
+                10, TimeUnit.MILLISECONDS, 8);
     }
 
     @Override
@@ -128,16 +127,23 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                         "Invoke remote method fast failure. " + "provider: " + invocation.getInvoker().getUrl())));
                 return;
             }
+            //这块的处理时间是耗时的, 会影响timer的判断.
+            //方法: 线程池== 一个task和future有且仅对应一个线程,保证当前链路上的执行有序
+            //处理: 1. 线程池 2.HashedWheelTimer池
+            //==> 为了方便future对task的cancel操作, 使用timers池
             invokers.remove(invoker);
             RpcContext.restoreContext(tmpContext);
             RpcContext.restoreServerContext(tmpServerContext);
             try {
                 invoker = select(loadbalance, invocation, invokers, null);
                 Result r = doInvoked(invocation, invokers, loadbalance, invoker, true);
+                //这里需不需要重新调整time呢?
                 waitCompletableFuture.register((AsyncRpcResult) r, timeout.timer().newTimeout(timeout.task(),
                         NodeManager.state(invoker).getTimeout(), TimeUnit.MILLISECONDS));
             } catch (Exception e) {
                 waitCompletableFuture.complete(new AppResponse(e));
+            } finally {
+                RpcContext.removeContext();
             }
         }
     }
@@ -145,7 +151,8 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     static class WaitCompletableFuture extends CompletableFuture<AppResponse> {
 
         public void register(AsyncRpcResult result, Timeout timeout) {
-            result.whenCompleteWithContext((appResponse, throwable) -> {
+            //不需要context,因为在task中已经保存了context上下文了
+            result.getResponseFuture().whenCompleteAsync((appResponse, throwable) -> {
                 if (WaitCompletableFuture.this.isDone()) {
                     return;
                 }
