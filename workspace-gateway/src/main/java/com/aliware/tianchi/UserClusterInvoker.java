@@ -152,7 +152,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
         public void register(AsyncRpcResult result, Timeout timeout) {
             //不需要context,因为在task中已经保存了context上下文了
-            result.getResponseFuture().whenCompleteAsync((appResponse, throwable) -> {
+            result.getResponseFuture().whenComplete((appResponse, throwable) -> {
                 if (WaitCompletableFuture.this.isDone()) {
                     return;
                 }
