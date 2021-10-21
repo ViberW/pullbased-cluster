@@ -6,6 +6,7 @@ import org.apache.dubbo.common.timer.Timeout;
 import org.apache.dubbo.common.timer.Timer;
 import org.apache.dubbo.common.timer.TimerTask;
 import org.apache.dubbo.common.utils.NamedThreadFactory;
+import org.apache.dubbo.remoting.TimeoutException;
 import org.apache.dubbo.rpc.*;
 import org.apache.dubbo.rpc.cluster.Directory;
 import org.apache.dubbo.rpc.cluster.LoadBalance;
@@ -40,7 +41,15 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         executor = new ThreadPoolExecutor(16, 16,
                 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(1024),
                 new NamedInternalThreadFactory("user-cluster-executor", true),
-                new ThreadPoolExecutor.CallerRunsPolicy());
+                /*new ThreadPoolExecutor.CallerRunsPolicy()*/new RejectedExecutionHandler() {
+            @Override
+            public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+                logger.info("UserClusterInvoker executor is full");
+                if (!executor.isShutdown()) {
+                    r.run();
+                }
+            }
+        });
     }
 
     @Override
@@ -154,12 +163,22 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     }
 
     static class WaitCompletableFuture extends CompletableFuture<AppResponse> {
+        long start = System.currentTimeMillis();
 
         public void register(AsyncRpcResult result, Timeout timeout) {
             //不需要context,因为在task中已经保存了context上下文了
             result.getResponseFuture().whenComplete((appResponse, throwable) -> {
                 if (WaitCompletableFuture.this.isDone()) {
                     return;
+                }
+                if (throwable != null) {
+                    if (throwable instanceof CompletionException) {
+                        throwable = ((CompletionException) throwable).getCause();
+                    }
+                    if (throwable instanceof TimeoutException) {
+                        logger.info("WaitCompletableFuture:{}#{}",
+                                ((TimeoutException) throwable).isClientSide(), System.currentTimeMillis() - start);
+                    }
                 }
                 if ((null != appResponse && !appResponse.hasException())) {
                     timeout.cancel();
