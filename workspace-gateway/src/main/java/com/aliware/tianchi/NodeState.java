@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author Viber
@@ -23,6 +24,8 @@ public class NodeState {
     private final int windowSize = 5;
     private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
     private volatile int executeTime = 10;
+    public AtomicLong active = new AtomicLong(0);
+    public AtomicLong failure = new AtomicLong(0);
 
     public NodeState(/*ScheduledExecutorService scheduledExecutor*/) {
         /*scheduledExecutor.scheduleWithFixedDelay(new Runnable() {

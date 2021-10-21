@@ -21,8 +21,10 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        NodeState state = NodeManager.state(invoker);
+        state.active.getAndIncrement();
         RpcContext.getClientAttachment().setAttachment(CommonConstants.TIMEOUT_KEY,
-                NodeManager.state(invoker).getTimeout()
+                state.getTimeout()
                         * (int) invocation.getObjectAttachment(RPCCode.TIME_RATIO, 1));
         invocation.setObjectAttachment(RPCCode.BEGIN, System.currentTimeMillis());
         return invoker.invoke(invocation);
@@ -46,13 +48,15 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
+        NodeState state = NodeManager.state(invoker);
         if (t != null) {
             if (t instanceof CompletionException) {
                 t = ((CompletionException) t).getCause();
             }
             if (t instanceof TimeoutException) {
-                logger.info("WaitCompletableFuture:{}#{}", invoker.getUrl().getHost() + ":" + invoker.getUrl().getPort(),
-                        ((TimeoutException) t).isClientSide());
+                long andIncrement = state.failure.getAndIncrement();
+                logger.info("WaitCompletableFuture:{}#{}#{}#{}", invoker.getUrl().getHost() + ":" + invoker.getUrl().getPort(),
+                        ((TimeoutException) t).isClientSide(), andIncrement, state.active.get());
             }
         }
     }
