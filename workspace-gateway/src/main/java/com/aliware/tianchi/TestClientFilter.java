@@ -23,8 +23,7 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         NodeState state = NodeManager.state(invoker);
         RpcContext.getClientAttachment().setAttachment(CommonConstants.TIMEOUT_KEY,
-                state.getTimeout()
-                        /** (int) invocation.getObjectAttachment(RPCCode.TIME_RATIO, 1)*/);
+                state.getTimeout() * (int) invocation.getObjectAttachment(RPCCode.TIME_RATIO, 1));
         invocation.setObjectAttachment(RPCCode.BEGIN, System.currentTimeMillis());
         return invoker.invoke(invocation);
     }
