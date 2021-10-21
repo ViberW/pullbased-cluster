@@ -20,7 +20,7 @@ public class NodeState {
     private final Counter<StateCounter> counter = new Counter<>(o -> new StateCounter());
     private final int windowSize = 5;
     private volatile int executeTime = 10;
-    private double failureRatio = 0;
+    private volatile int coefficient = 100;
 
     public NodeState(ScheduledExecutorService scheduledExecutor) {
         scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
@@ -30,10 +30,10 @@ public class NodeState {
                 long low = high - windowSize;
                 long[] ret = sum(low, high);
                 if (ret[0] > 100) {//超过100的处理
-                    double ratio = ret[1] * 1.0 / ret[0];
-                    ratio = (ratio + failureRatio) / 2;
-                    failureRatio = ratio;
-                    logger.info("NodeState:{}", ratio);
+                    int coef = (int) ((1 - (ret[1] * 1.0 / ret[0])) * 100);//乘以100,避免因降低导致出随机概率不合适
+                    coef = (coef + coefficient) / 2;
+                    coefficient = coef;
+                    logger.info("NodeState:{}", coef);
                 }
                 clean(high);
             }
@@ -41,7 +41,7 @@ public class NodeState {
     }
 
     public int getWeight() {
-        return Math.max(1, (int) (weight * (1 - failureRatio)));
+        return Math.max(1, weight * coefficient);
     }
 
     public void setWeight(int w) {
