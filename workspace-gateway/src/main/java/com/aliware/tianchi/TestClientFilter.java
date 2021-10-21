@@ -4,9 +4,10 @@ import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
 import org.apache.dubbo.remoting.TimeoutException;
 import org.apache.dubbo.rpc.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 客户端过滤器（选址后）
@@ -16,6 +17,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 @Activate(group = CommonConstants.CONSUMER)
 public class TestClientFilter implements Filter, BaseFilter.Listener {
+    private final static Logger logger = LoggerFactory.getLogger(TestClientFilter.class);
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
@@ -44,5 +46,14 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
+        if (t != null) {
+            if (t instanceof CompletionException) {
+                t = ((CompletionException) t).getCause();
+            }
+            if (t instanceof TimeoutException) {
+                logger.info("WaitCompletableFuture:{}#{}", invoker.getUrl().getHost() + ":" + invoker.getUrl().getPort(),
+                        ((TimeoutException) t).isClientSide());
+            }
+        }
     }
 }
