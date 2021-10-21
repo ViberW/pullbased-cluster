@@ -5,10 +5,6 @@ import org.apache.dubbo.rpc.Invoker;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author Viber
@@ -27,7 +23,6 @@ public class NodeManager {
 //        String uri = invoker.getUrl().toIdentityString();
         return STATES.computeIfAbsent(buildString(invoker), s -> new NodeState(/*scheduledExecutor*/));
     }
-
 
     private static String buildString(Invoker<?> invoker) {
         URL url = invoker.getUrl();

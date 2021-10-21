@@ -180,6 +180,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                                 ((TimeoutException) throwable).isClientSide(), System.currentTimeMillis() - start);
                     }
                 }
+                start = System.currentTimeMillis();
                 if ((null != appResponse && !appResponse.hasException())) {
                     timeout.cancel();
                     WaitCompletableFuture.this.complete(appResponse);
@@ -188,7 +189,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                         //手动执行.
                         timeout.task().run(timeout);
                     } catch (Throwable t) {
-                        logger.warn("An exception was thrown by " + TimerTask.class.getSimpleName() + '.', t);
+                        logger.warn("An exception was thrown by " + timeout.task().getClass().getSimpleName(), t);
                         WaitCompletableFuture.this.complete(new AppResponse(t));
                     }
                 }
