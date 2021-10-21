@@ -6,8 +6,6 @@ import org.slf4j.LoggerFactory;
 import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author Viber
@@ -16,36 +14,34 @@ import java.util.concurrent.atomic.AtomicLong;
  * @since 2021/9/10 14:00
  */
 public class NodeState {
-    //    private static final long timeInterval = TimeUnit.SECONDS.toMillis(1);
-//    private static final long oneMill = TimeUnit.MILLISECONDS.toNanos(1);
-    public volatile int weight = 50;
-    //    private final Counter<StateCounter> counter = new Counter<>(o -> new StateCounter());
-//    public volatile long timeout = 10L;
-    private final int windowSize = 5;
     private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
+    private static final long timeInterval = TimeUnit.SECONDS.toMillis(2);
+    public volatile int weight = 50;
+    private final Counter<StateCounter> counter = new Counter<>(o -> new StateCounter());
+    private final int windowSize = 5;
     private volatile int executeTime = 10;
-    public AtomicLong active = new AtomicLong(0);
-    public AtomicLong failure = new AtomicLong(0);
+    private double failureRatio = 0;
 
-    public NodeState(/*ScheduledExecutorService scheduledExecutor*/) {
-        /*scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
+    public NodeState(ScheduledExecutorService scheduledExecutor) {
+        scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
             @Override
             public void run() {
                 long high = offset();
                 long low = high - windowSize;
                 long[] ret = sum(low, high);
-                if (ret[0] > 0) {
-                    long newTimeout = ((1 + ret[1] / ret[0]));
-                    newTimeout = *//*(long) (timeout + (newTimeout - timeout) * ALPHA)*//* (newTimeout + timeout) / 2;
-                    timeout = newTimeout;
+                if (ret[0] > 100) {//超过100的处理
+                    double ratio = ret[1] * 1.0 / ret[0];
+                    ratio = (ratio + failureRatio) / 2;
+                    failureRatio = ratio;
+                    logger.info("NodeState:{}", ratio);
                 }
                 clean(high);
             }
-        }, 5, 1, TimeUnit.SECONDS);*/
+        }, 10, 2, TimeUnit.SECONDS);
     }
 
     public int getWeight() {
-        return Math.max(1, weight);
+        return Math.max(1, (int) (weight * (1 - failureRatio)));
     }
 
     public void setWeight(int w) {
@@ -64,10 +60,12 @@ public class NodeState {
         return /*timeout +*/ executeTime;
     }
 
-  /*  public void end(long duration) {
+    public void end(boolean failure) {
         long offset = offset();
         StateCounter state = counter.get(offset);
-        state.getDuration().add(duration / oneMill);
+        if (failure) {
+            state.getFailure().add(1);
+        }
         state.getTotal().add(1);
     }
 
@@ -77,7 +75,7 @@ public class NodeState {
         if (!sub.isEmpty()) {
             sub.forEach(state -> {
                 result[0] += state.getTotal().sum();
-                result[1] += state.getDuration().sum();
+                result[1] += state.getFailure().sum();
             });
         }
         return result;
@@ -90,5 +88,5 @@ public class NodeState {
     public void clean(long high) {
         long toKey = high - (windowSize << 1);
         counter.clean(toKey);
-    }*/
+    }
 }
