@@ -2,11 +2,17 @@ package com.aliware.tianchi;
 
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.rpc.Invoker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import static java.lang.Math.abs;
+import static java.lang.Math.exp;
 
 /**
  * @author Viber
@@ -15,12 +21,36 @@ import java.util.concurrent.ScheduledExecutorService;
  * @since 2021/9/10 13:55
  */
 public class NodeManager {
-
+    private final static Logger logger = LoggerFactory.getLogger(NodeManager.class);
     //帮助定期的减少Node的信息
     private static final Map<String, NodeState> STATES = new ConcurrentHashMap<>();
     //用的时间不长, 就单个的
-    private static ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+    private static ScheduledExecutorService scheduledExecutor;
 
+    private static volatile int fullWeight = 0;
+    private static volatile boolean balance = false;
+    private static final double ALPHA = 1 - exp(-2 / 10.0);
+
+    static {
+        scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            scheduledExecutor.shutdown();
+        }));
+        //定时统计所有的量总和
+        scheduledExecutor.scheduleWithFixedDelay(() -> {
+            int totalWeight = 0;
+            for (Map.Entry<String, NodeState> entry : STATES.entrySet()) {
+                totalWeight += entry.getValue().getFullWeight();
+            }
+            if (balance) {
+                totalWeight = (int) (fullWeight + (totalWeight - fullWeight) * ALPHA);
+                fullWeight = totalWeight;
+            } else if (Math.abs(totalWeight - fullWeight) < 0.1 * fullWeight) {
+                balance = true;
+            }
+            logger.info("NodeManager:{}", totalWeight);
+        }, 10, 2, TimeUnit.SECONDS);
+    }
 
     public static NodeState state(Invoker<?> invoker) {
 //        String uri = invoker.getUrl().toIdentityString();

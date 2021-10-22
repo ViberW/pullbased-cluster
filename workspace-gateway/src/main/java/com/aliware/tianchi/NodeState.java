@@ -21,6 +21,7 @@ public class NodeState {
     private final int windowSize = 5;
     private volatile int executeTime = 10;
     private volatile int coefficient = 100;
+    private volatile double okRatio = 1;
 
     public NodeState(ScheduledExecutorService scheduledExecutor) {
         scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
@@ -30,8 +31,11 @@ public class NodeState {
                 long low = high - windowSize;
                 long[] ret = sum(low, high);
                 if (ret[0] > 100) {//超过100的处理
-                    int coef = (int) ((1 - (ret[1] * 1.0 / ret[0])) * 100);//乘以100,避免因降低导致出随机概率不合适
+                    double ratio = ret[1] * 1.0 / ret[0];
+                    ratio = (okRatio + ratio) / 2;
+                    int coef = (int) ((1 - ratio) * 100);//乘以100,避免因降低导致出随机概率不合适
                     coef = (coef + coefficient) / 2;
+                    okRatio = ratio;
                     coefficient = coef;
                 }
                 clean(high);
@@ -47,6 +51,10 @@ public class NodeState {
         if (weight != w) {
             weight = w;
         }
+    }
+
+    public int getFullWeight() {
+        return (int) (weight / okRatio);
     }
 
     public void setExecuteTime(int executeTime) {

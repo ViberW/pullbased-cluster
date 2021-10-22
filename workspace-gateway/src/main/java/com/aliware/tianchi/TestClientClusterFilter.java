@@ -20,6 +20,7 @@ public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listen
     private final static Logger logger = LoggerFactory.getLogger(TestClientClusterFilter.class);
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        //下午尝试下, 这里做个限流, 通过每隔一段时间的计算, 得出gateway的容量
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {

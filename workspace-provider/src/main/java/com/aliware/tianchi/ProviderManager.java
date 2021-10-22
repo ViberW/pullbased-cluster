@@ -145,6 +145,7 @@ public class ProviderManager {
 
     private static void resetWeight(int w) {
         weight = w;
+        logger.info("resetWeight:{}", w);
     }
 
 
