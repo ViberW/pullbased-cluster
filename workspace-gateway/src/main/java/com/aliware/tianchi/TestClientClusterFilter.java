@@ -23,7 +23,6 @@ public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listen
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {
-            logger.info("TestClientClusterFilter:{}",e.getMessage());
             throw e;
         }
     }
@@ -34,6 +33,5 @@ public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listen
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
-        logger.info("TestClientClusterFilter1:{}",t.getMessage());
     }
 }
