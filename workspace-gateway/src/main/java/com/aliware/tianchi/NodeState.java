@@ -33,7 +33,6 @@ public class NodeState {
                     int coef = (int) ((1 - (ret[1] * 1.0 / ret[0])) * 100);//乘以100,避免因降低导致出随机概率不合适
                     coef = (coef + coefficient) / 2;
                     coefficient = coef;
-                    logger.info("NodeState:{}", coef);
                 }
                 clean(high);
             }

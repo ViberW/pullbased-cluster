@@ -4,6 +4,8 @@ import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
 import org.apache.dubbo.rpc.*;
 import org.apache.dubbo.rpc.cluster.filter.ClusterFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -15,11 +17,13 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 @Activate(group = CommonConstants.CONSUMER)
 public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listener {
+    private final static Logger logger = LoggerFactory.getLogger(TestClientClusterFilter.class);
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {
+            logger.info("TestClientClusterFilter:{}",e.getMessage());
             throw e;
         }
     }
@@ -30,5 +34,6 @@ public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listen
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
+        logger.info("TestClientClusterFilter1:{}",t.getMessage());
     }
 }
