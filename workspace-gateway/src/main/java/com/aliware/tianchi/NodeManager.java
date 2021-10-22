@@ -10,8 +10,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
-import static java.lang.Math.abs;
 import static java.lang.Math.exp;
 
 /**
@@ -26,9 +26,10 @@ public class NodeManager {
     private static final Map<String, NodeState> STATES = new ConcurrentHashMap<>();
     //用的时间不长, 就单个的
     private static ScheduledExecutorService scheduledExecutor;
+    public static final AtomicLong active = new AtomicLong(1);
 
-    private static volatile int fullWeight = 0;
-    private static volatile boolean balance = false;
+    public static volatile int fullWeight = 0;
+    public static volatile boolean balance = false;
     private static final double ALPHA = 1 - exp(-2 / 10.0);
 
     static {
@@ -46,6 +47,7 @@ public class NodeManager {
                 totalWeight = (int) (fullWeight + (totalWeight - fullWeight) * ALPHA);
                 fullWeight = totalWeight;
             } else if (Math.abs(totalWeight - fullWeight) < 0.1 * fullWeight) {
+                fullWeight = totalWeight;
                 balance = true;
             }
             logger.info("NodeManager:{}", totalWeight);

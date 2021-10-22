@@ -31,9 +31,9 @@ public class NodeState {
                 long low = high - windowSize;
                 long[] ret = sum(low, high);
                 if (ret[0] > 100) {//超过100的处理
-                    double ratio = ret[1] * 1.0 / ret[0];
+                    double ratio = (1 - (ret[1] * 1.0 / ret[0]));
                     ratio = (okRatio + ratio) / 2;
-                    int coef = (int) ((1 - ratio) * 100);//乘以100,避免因降低导致出随机概率不合适
+                    int coef = (int) (ratio * 100);//乘以100,避免因降低导致出随机概率密集
                     coef = (coef + coefficient) / 2;
                     okRatio = ratio;
                     coefficient = coef;
