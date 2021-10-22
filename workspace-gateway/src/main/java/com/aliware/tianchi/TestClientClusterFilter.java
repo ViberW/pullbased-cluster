@@ -24,36 +24,18 @@ public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listen
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        long concurrent = NodeManager.active.getAndIncrement();
-        if (NodeManager.balance) {
-            long w = NodeManager.fullWeight.value;
-            double r = ThreadLocalRandom.current().nextDouble(1);
-            if (r > 1.8 - (concurrent * 1.0 / w)) {
-                logger.info("TestClientClusterFilter:{}", concurrent);
-                CompletableFuture<AppResponse> future = new CompletableFuture<>();
-                future.completeExceptionally(new RpcException(RPCCode.FAST_INTERRUPTED,
-                        "fast failure by consumer to invoke method "
-                                + invocation.getMethodName() + " in provider " + invoker.getUrl()));
-                AsyncRpcResult rpcResult = new AsyncRpcResult(future, invocation);
-                RpcContext.getServiceContext().setFuture(new FutureAdapter<>(future));
-                return rpcResult;
-            }
-        }
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {
-            NodeManager.active.getAndDecrement();
             throw e;
         }
     }
 
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
-        NodeManager.active.getAndDecrement();
     }
 
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
-        NodeManager.active.getAndDecrement();
     }
 }
