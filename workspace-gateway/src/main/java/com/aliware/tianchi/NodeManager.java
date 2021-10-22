@@ -46,19 +46,18 @@ public class NodeManager {
             for (Map.Entry<String, NodeState> entry : STATES.entrySet()) {
                 totalWeight += entry.getValue().getFullWeight();
             }
-            long value = fullWeight.value;
+            int value = fullWeight.value;
             if (balance) {
                 totalWeight = (int) (value + (totalWeight - value) * ALPHA);
                 logger.info("NodeManager:{}", totalWeight);
-            } else if (Math.abs(totalWeight - value) < 0.1 * value) {
+            } else if (Math.abs(totalWeight - value) < 0.05 * value) {
                 balance = true;
             }
             fullWeight.value = totalWeight;
-        }, 10, 2, TimeUnit.SECONDS);
+        }, 10, 1, TimeUnit.SECONDS);
     }
 
     public static NodeState state(Invoker<?> invoker) {
-//        String uri = invoker.getUrl().toIdentityString();
         return STATES.computeIfAbsent(buildString(invoker), s -> new NodeState(scheduledExecutor));
     }
 

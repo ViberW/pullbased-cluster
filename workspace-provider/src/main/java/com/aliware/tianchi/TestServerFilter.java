@@ -20,7 +20,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        long w = ProviderManager.weight.value;
+        int w = ProviderManager.weight.value;
         long concurrent = ProviderManager.active.getAndIncrement();
         if (concurrent > w) {
             double r = ThreadLocalRandom.current().nextDouble(1);
@@ -47,7 +47,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         ProviderManager.time(duration, (long) invocation.get(ACTIVE));
         appResponse.setObjectAttachment("w", ProviderManager.weight.value);
 //        appResponse.setObjectAttachment("d", duration);
-        appResponse.setObjectAttachment("e", ProviderManager.executeTime);
+        appResponse.setObjectAttachment("e", ProviderManager.executeTime.value);
     }
 
     @Override

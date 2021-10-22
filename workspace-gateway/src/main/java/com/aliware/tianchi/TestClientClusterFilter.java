@@ -29,6 +29,7 @@ public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listen
             long w = NodeManager.fullWeight.value;
             double r = ThreadLocalRandom.current().nextDouble(1);
             if (r > 1.8 - (concurrent * 1.0 / w)) {
+                logger.info("TestClientClusterFilter:{}", concurrent);
                 CompletableFuture<AppResponse> future = new CompletableFuture<>();
                 future.completeExceptionally(new RpcException(RPCCode.FAST_INTERRUPTED,
                         "fast failure by consumer to invoke method "
@@ -41,6 +42,7 @@ public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listen
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {
+            NodeManager.active.getAndDecrement();
             throw e;
         }
     }
@@ -53,15 +55,5 @@ public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listen
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
         NodeManager.active.getAndDecrement();
-        if (t instanceof CompletionException) {
-            t = ((CompletionException) t).getCause();
-        }
-        if (t instanceof RpcException) {
-            if (((RpcException) t).getCode() == RPCCode.FAST_INTERRUPTED) {
-                logger.info("TestClientClusterFilter-1:");
-            } else if (((RpcException) t).getCode() == RPCCode.FAST_FAIL) {
-                logger.info("TestClientClusterFilter-2:");
-            }
-        }
     }
 }

@@ -16,11 +16,11 @@ import java.util.concurrent.TimeUnit;
 public class NodeState {
     private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
     private static final long timeInterval = TimeUnit.SECONDS.toMillis(2);
-    public volatile Value weight = new Value(50);
+    public Value weight = new Value(50);
     private final Counter<StateCounter> counter = new Counter<>(o -> new StateCounter());
     private final int windowSize = 5;
-    private volatile int executeTime = 10;
-    private volatile int coefficient = 100;
+    private Value executeTime = new Value(10);
+    private Value coefficient = new Value(100);
     private volatile double okRatio = 1;
 
     public NodeState(ScheduledExecutorService scheduledExecutor) {
@@ -34,9 +34,9 @@ public class NodeState {
                     double ratio = (1 - (ret[1] * 1.0 / ret[0]));
                     ratio = (okRatio + ratio) / 2;
                     int coef = (int) (ratio * 100);//乘以100,避免因降低导致出随机概率密集
-                    coef = (coef + coefficient) / 2;
+                    coef = (coef + coefficient.value) / 2;
                     okRatio = ratio;
-                    coefficient = coef;
+                    coefficient.value = coef;
                 }
                 clean(high);
             }
@@ -44,10 +44,10 @@ public class NodeState {
     }
 
     public int getWeight() {
-        return (int) Math.max(1, weight.value * coefficient);
+        return Math.max(1, weight.value * coefficient.value);
     }
 
-    public void setWeight(long w) {
+    public void setWeight(int w) {
         if (weight.value != w) {
             weight.value = w;
         }
@@ -58,13 +58,13 @@ public class NodeState {
     }
 
     public void setExecuteTime(int executeTime) {
-        if (this.executeTime != executeTime) {
-            this.executeTime = executeTime;
+        if (this.executeTime.value != executeTime) {
+            this.executeTime.value = executeTime;
         }
     }
 
-    public long getTimeout() {
-        return /*timeout +*/ executeTime;
+    public int getTimeout() {
+        return /*timeout +*/ executeTime.value;
     }
 
     public void end(boolean failure) {

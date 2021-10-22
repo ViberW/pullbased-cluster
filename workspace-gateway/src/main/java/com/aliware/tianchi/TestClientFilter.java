@@ -33,7 +33,7 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         NodeState state = NodeManager.state(invoker);
         Object value = appResponse.getObjectAttachment("w");
         if (null != value) {
-            state.setWeight((Long) value);
+            state.setWeight((Integer) value);
         }
 //        value = appResponse.getObjectAttachment("d");
 //        long duration = System.nanoTime() - (long) invocation.getObjectAttachment(RPCCode.BEGIN);

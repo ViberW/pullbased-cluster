@@ -29,9 +29,12 @@ public class ProviderManager {
     private static volatile boolean once = true;
 
     public static Value weight = new Value(50);
+    public static Value executeTime = new Value(10);
 
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);
     private static final long windowSize = 5;
+    static final long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 10;
+    static final int levelCount = 100; //能够支持统计tps的请求数
     private static final Counter<SumCounter> counter = new Counter<>(l -> new SumCounter());
     private static final Counter<SumCounter[]> counters = new Counter<>(l -> {
         SumCounter[] sumCounters = new SumCounter[7];
@@ -55,10 +58,6 @@ public class ProviderManager {
         }
     }
 
-    static final long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 10;
-    static volatile int executeTime = 10;
-    static final int levelCount = 100; //能够支持统计tps的请求数
-
     private static class CalculateTask implements Runnable {
         @Override
         public void run() {
@@ -80,12 +79,12 @@ public class ProviderManager {
             }
             long toKey = high - (windowSize << 1);
             if (counts[3] > levelCount) {
-                long v = weight.value;
-                long[] weights = {v - 6, v - 4, v - 2, v, v + 2, v + 4, v + 6};
+                int v = weight.value;
+                int[] weights = {v - 6, v - 4, v - 2, v, v + 2, v + 4, v + 6};
                 long[] tps = new long[7];
                 int maxIndex = 0;
                 long maxTps = 0;
-                int targetTime = executeTime;
+                int targetTime = executeTime.value;
                 for (int i = 0; i < 7; i++) {
                     if (counts[i] > levelCount) {
                         double avgTime = Math.max(1.0, ((int) (((durations[i] / counts[i]) / littleMillis))) / 10.0); //保证1.x的时间
@@ -133,7 +132,7 @@ public class ProviderManager {
                     }
                 }
                 //存放和合适的超时时间
-                resetExecuteTime((executeTime + targetTime) / 2);
+                resetExecuteTime((executeTime.value + targetTime) / 2);
             }
             counter.clean(toKey);
         }
@@ -141,10 +140,10 @@ public class ProviderManager {
     }
 
     private static void resetExecuteTime(int et) {
-        executeTime = et;
+        executeTime.value = et;
     }
 
-    private static void resetWeight(long w) {
+    private static void resetWeight(int w) {
         weight.value = w;
     }
 
