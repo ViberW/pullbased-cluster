@@ -28,7 +28,7 @@ public class ProviderManager {
     private static ScheduledExecutorService scheduledExecutor;
     private static volatile boolean once = true;
 
-    public static volatile int weight = 50;
+    public static Value weight = new Value(50);
 
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);
     private static final long windowSize = 5;
@@ -80,7 +80,8 @@ public class ProviderManager {
             }
             long toKey = high - (windowSize << 1);
             if (counts[3] > levelCount) {
-                int[] weights = {weight - 6, weight - 4, weight - 2, weight, weight + 2, weight + 4, weight + 6};
+                long v = weight.value;
+                long[] weights = {v - 6, v - 4, v - 2, v, v + 2, v + 4, v + 6};
                 long[] tps = new long[7];
                 int maxIndex = 0;
                 long maxTps = 0;
@@ -112,7 +113,7 @@ public class ProviderManager {
                         }
                     }
                     if (most * 1.0 / total >= 0.5) {
-                        resetWeight(weight + 1);
+                        resetWeight(v + 1);
                         toKey = offset();
                     }
                 } else if (maxIndex < 3) {
@@ -127,7 +128,7 @@ public class ProviderManager {
                         }
                     }
                     if (most * 1.0 / total >= 0.5) {
-                        resetWeight(weight - 1);
+                        resetWeight(v - 1);
                         toKey = offset();
                     }
                 }
@@ -143,16 +144,15 @@ public class ProviderManager {
         executeTime = et;
     }
 
-    private static void resetWeight(int w) {
-        weight = w;
-        logger.info("resetWeight:{}", w);
+    private static void resetWeight(long w) {
+        weight.value = w;
     }
 
 
     public static void time(long duration, long concurrent) {
         long offset = offset();
         SumCounter[] sumCounters = counters.get(offset);
-        long w = weight;
+        long w = weight.value;
         if (Math.abs(concurrent - w) <= 6) { //说明需要调整到对应的位置上去
             SumCounter sumCounter = sumCounters[(int) (concurrent - w + 6) / 2];
             sumCounter.getTotal().add(1);

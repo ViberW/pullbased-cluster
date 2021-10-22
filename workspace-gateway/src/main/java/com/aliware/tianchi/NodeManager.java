@@ -27,10 +27,10 @@ public class NodeManager {
     //用的时间不长, 就单个的
     private static ScheduledExecutorService scheduledExecutor;
     public static final AtomicLong active = new AtomicLong(1);
-
-    public static volatile int fullWeight = 0;
-    public static volatile boolean balance = false;
     private static final double ALPHA = 1 - exp(-2 / 10.0);
+
+    public static volatile boolean balance = false;
+    public static Value fullWeight = new Value(0);
 
     static {
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
@@ -39,18 +39,21 @@ public class NodeManager {
         }));
         //定时统计所有的量总和
         scheduledExecutor.scheduleWithFixedDelay(() -> {
+            if (STATES.isEmpty()) {
+                return;
+            }
             int totalWeight = 0;
             for (Map.Entry<String, NodeState> entry : STATES.entrySet()) {
                 totalWeight += entry.getValue().getFullWeight();
             }
+            long value = fullWeight.value;
             if (balance) {
-                totalWeight = (int) (fullWeight + (totalWeight - fullWeight) * ALPHA);
-                fullWeight = totalWeight;
-            } else if (Math.abs(totalWeight - fullWeight) < 0.1 * fullWeight) {
-                fullWeight = totalWeight;
+                totalWeight = (int) (value + (totalWeight - value) * ALPHA);
+                logger.info("NodeManager:{}", totalWeight);
+            } else if (Math.abs(totalWeight - value) < 0.1 * value) {
                 balance = true;
             }
-            logger.info("NodeManager:{}", totalWeight);
+            fullWeight.value = totalWeight;
         }, 10, 2, TimeUnit.SECONDS);
     }
 

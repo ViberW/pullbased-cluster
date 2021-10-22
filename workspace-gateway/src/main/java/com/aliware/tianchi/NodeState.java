@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 public class NodeState {
     private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
     private static final long timeInterval = TimeUnit.SECONDS.toMillis(2);
-    public volatile int weight = 50;
+    public volatile Value weight = new Value(50);
     private final Counter<StateCounter> counter = new Counter<>(o -> new StateCounter());
     private final int windowSize = 5;
     private volatile int executeTime = 10;
@@ -44,17 +44,17 @@ public class NodeState {
     }
 
     public int getWeight() {
-        return Math.max(1, weight * coefficient);
+        return (int) Math.max(1, weight.value * coefficient);
     }
 
-    public void setWeight(int w) {
-        if (weight != w) {
-            weight = w;
+    public void setWeight(long w) {
+        if (weight.value != w) {
+            weight.value = w;
         }
     }
 
     public int getFullWeight() {
-        return (int) (weight / okRatio);
+        return (int) (weight.value / okRatio);
     }
 
     public void setExecuteTime(int executeTime) {

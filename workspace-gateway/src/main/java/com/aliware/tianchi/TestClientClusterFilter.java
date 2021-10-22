@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -23,14 +24,13 @@ public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listen
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        //来个限流看看
         long concurrent = NodeManager.active.getAndIncrement();
         if (NodeManager.balance) {
-            int w = NodeManager.fullWeight;
+            long w = NodeManager.fullWeight.value;
             double r = ThreadLocalRandom.current().nextDouble(1);
             if (r > 1.8 - (concurrent * 1.0 / w)) {
                 CompletableFuture<AppResponse> future = new CompletableFuture<>();
-                future.completeExceptionally(new RpcException(RPCCode.FAST_FAIL,
+                future.completeExceptionally(new RpcException(RPCCode.FAST_INTERRUPTED,
                         "fast failure by consumer to invoke method "
                                 + invocation.getMethodName() + " in provider " + invoker.getUrl()));
                 AsyncRpcResult rpcResult = new AsyncRpcResult(future, invocation);
@@ -53,5 +53,15 @@ public class TestClientClusterFilter implements ClusterFilter, BaseFilter.Listen
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
         NodeManager.active.getAndDecrement();
+        if (t instanceof CompletionException) {
+            t = ((CompletionException) t).getCause();
+        }
+        if (t instanceof RpcException) {
+            if (((RpcException) t).getCode() == RPCCode.FAST_INTERRUPTED) {
+                logger.info("TestClientClusterFilter-1:");
+            } else if (((RpcException) t).getCode() == RPCCode.FAST_FAIL) {
+                logger.info("TestClientClusterFilter-2:");
+            }
+        }
     }
 }
