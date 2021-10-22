@@ -24,7 +24,7 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         NodeState state = NodeManager.state(invoker);
         RpcContext.getClientAttachment().setAttachment(CommonConstants.TIMEOUT_KEY,
                 state.getTimeout() * (int) invocation.getObjectAttachment(RPCCode.TIME_RATIO, 1));
-        invocation.setObjectAttachment(RPCCode.BEGIN, System.currentTimeMillis());
+//        invocation.setObjectAttachment(RPCCode.BEGIN, System.currentTimeMillis());
         return invoker.invoke(invocation);
     }
 
