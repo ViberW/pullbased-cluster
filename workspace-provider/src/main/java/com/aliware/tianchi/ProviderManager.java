@@ -33,7 +33,7 @@ public class ProviderManager {
 
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);
     private static final long windowSize = 5;
-    static final long littleMillis = TimeUnit.MILLISECONDS.toMicros(1) / 100;
+    static final long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 100;
     static final int levelCount = 100; //能够支持统计tps的请求数
     private static final Counter<SumCounter> counter = new Counter<>(l -> new SumCounter());
     private static final Counter<SumCounter[]> counters = new Counter<>(l -> {
