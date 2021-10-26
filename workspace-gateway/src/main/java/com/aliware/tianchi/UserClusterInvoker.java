@@ -1,6 +1,8 @@
 package com.aliware.tianchi;
 
-import org.apache.dubbo.common.threadlocal.NamedInternalThreadFactory;
+import org.apache.dubbo.common.URL;
+import org.apache.dubbo.common.extension.ExtensionLoader;
+import org.apache.dubbo.common.threadpool.manager.ExecutorRepository;
 import org.apache.dubbo.common.timer.HashedWheelTimer;
 import org.apache.dubbo.common.timer.Timeout;
 import org.apache.dubbo.common.timer.Timer;
@@ -15,7 +17,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
 import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
@@ -29,18 +33,12 @@ import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
 public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     private final static Logger logger = LoggerFactory.getLogger(UserClusterInvoker.class);
     private final Timer checker;
-    private final ExecutorService executor;
 
     public UserClusterInvoker(Directory<T> directory) {
         super(directory);
         checker = new HashedWheelTimer(
                 new NamedThreadFactory("user-cluster-check-timer", true),
                 10, TimeUnit.MILLISECONDS);
-        int size = Math.max(Runtime.getRuntime().availableProcessors(), 32); //允许自定义
-        executor = new ThreadPoolExecutor(size, size, 0, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>(1024),
-                new NamedInternalThreadFactory("user-cluster-executor", true),
-                new ThreadPoolExecutor.CallerRunsPolicy());
     }
 
     @Override
@@ -88,7 +86,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     public void destroy() {
         super.destroy();
         checker.stop();
-        executor.shutdown();
     }
 
     class FutureTimeoutTask implements TimerTask {
@@ -135,10 +132,14 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 execute(timeout); //由原本的defaultFuture的executor去执行
             } else {
                 //时间长的任务交由executor去执行, 尽量不影响timer的滴答
-                executor.execute(() -> {
-                    execute(timeout);
-                });
+                getExecutor(invoker.getUrl()).execute(() -> execute(timeout));
             }
+        }
+
+        //由上一次的线程池去帮忙执行
+        protected ExecutorService getExecutor(URL url) {
+            return ExtensionLoader.getExtensionLoader(ExecutorRepository.class)
+                    .getDefaultExtension().getExecutor(url);
         }
 
         private void execute(Timeout timeout) {
