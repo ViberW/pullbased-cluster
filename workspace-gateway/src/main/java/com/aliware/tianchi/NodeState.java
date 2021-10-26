@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class NodeState {
     private final static Logger logger = LoggerFactory.getLogger(NodeState.class);
-    private static final long timeInterval = TimeUnit.SECONDS.toMillis(2);
+    private static final long timeInterval = TimeUnit.SECONDS.toMillis(1);
     public Value weight = new Value(50);
     private final Counter<StateCounter> counter = new Counter<>(o -> new StateCounter());
     private final int windowSize = 5;
@@ -37,7 +37,7 @@ public class NodeState {
                 }
                 clean(high);
             }
-        }, 10, 2, TimeUnit.SECONDS);
+        }, 10, 1, TimeUnit.SECONDS);
     }
 
     public int getWeight() {

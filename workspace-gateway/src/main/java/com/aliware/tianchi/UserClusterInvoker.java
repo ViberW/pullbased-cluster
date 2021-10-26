@@ -38,7 +38,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         super(directory);
         checker = new HashedWheelTimer(
                 new NamedThreadFactory("user-cluster-check-timer", true),
-                10, TimeUnit.MILLISECONDS);
+                15, TimeUnit.MILLISECONDS);
     }
 
     @Override

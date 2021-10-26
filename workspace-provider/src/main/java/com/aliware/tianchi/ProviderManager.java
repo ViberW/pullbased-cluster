@@ -33,7 +33,7 @@ public class ProviderManager {
 
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);
     private static final long windowSize = 5;
-    static final long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 10;
+    static final long littleMillis = TimeUnit.MILLISECONDS.toMicros(1) / 100;
     static final int levelCount = 100; //能够支持统计tps的请求数
     private static final Counter<SumCounter> counter = new Counter<>(l -> new SumCounter());
     private static final Counter<SumCounter[]> counters = new Counter<>(l -> {
@@ -43,7 +43,7 @@ public class ProviderManager {
         }
         return sumCounters;
     });
-    public static final AtomicLong active = new AtomicLong(1);
+    public static final AtomicLong active = new AtomicLong(0);
 
     public static void maybeInit(Invoker<?> invoker) {
         if (once) {
@@ -87,7 +87,7 @@ public class ProviderManager {
                 int targetTime = executeTime.value;
                 for (int i = 0; i < 7; i++) {
                     if (counts[i] > levelCount) {
-                        double avgTime = Math.max(1.0, ((int) (((durations[i] / counts[i]) / littleMillis))) / 10.0); //保证1.x的时间
+                        double avgTime = Math.max(1.0, ((int) (((durations[i] / counts[i]) / littleMillis))) / 100.0); //保证1.xx的时间
                         long t = (long) ((1000.0 / avgTime) * weights[i]);//1s时间的tps
                         tps[i] = t;
                         if (maxTps < t) {
