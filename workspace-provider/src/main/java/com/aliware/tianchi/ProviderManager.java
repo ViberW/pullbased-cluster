@@ -153,7 +153,7 @@ public class ProviderManager {
         SumCounter[] sumCounters = counters.get(offset);
         long w = weight.value;
         if (Math.abs(concurrent - w) <= 6) { //说明需要调整到对应的位置上去
-            SumCounter sumCounter = sumCounters[(int) (concurrent - w + 6) / 2];
+            SumCounter sumCounter = sumCounters[(int) (concurrent - w + 6) >> 1];
             sumCounter.getTotal().add(1);
             sumCounter.getDuration().add(duration);
         }
