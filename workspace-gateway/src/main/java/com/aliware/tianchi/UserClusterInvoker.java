@@ -66,7 +66,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     private Result doInvoked(Invocation invocation, List<Invoker<T>> invokers,
                              LoadBalance loadbalance, Invoker<T> invoker) {
         try {
-//            invocation.setObjectAttachment(RPCCode.TIME_RATIO, invokers.size());
+            invocation.setObjectAttachment(RPCCode.TIME_RATIO, invokers.size());
             return invoker.invoke(invocation);
         } catch (RpcException e) {
             if (e.isNetwork()) {
