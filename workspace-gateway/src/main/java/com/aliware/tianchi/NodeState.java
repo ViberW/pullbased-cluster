@@ -41,7 +41,7 @@ public class NodeState {
     }
 
     public int getWeight() {
-        return Math.max(1, weight.value * coefficient.value);
+        return weight.value * coefficient.value;
     }
 
     public void setWeight(int w) {

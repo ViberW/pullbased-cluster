@@ -11,7 +11,6 @@ import oshi.hardware.HardwareAbstractionLayer;
 import java.util.Collection;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -29,9 +28,9 @@ public class ProviderManager {
     private static volatile boolean once = true;
 
     public static Value weight = new Value(50);
+    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(300);
     public static Value executeTime = new Value(10);
-
-    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);
+    public static Value actualWeight = new Value((int) (1.1 * weight.value));
     private static final long windowSize = 5;
     static final long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 100;
     static final int levelCount = 100; //能够支持统计tps的请求数
@@ -51,11 +50,21 @@ public class ProviderManager {
                 if (once) {
                     scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
                     scheduledExecutor.scheduleWithFixedDelay(new CalculateTask(), 1000,
-                            200, TimeUnit.MILLISECONDS);
+                            300, TimeUnit.MILLISECONDS);
                     once = false;
                 }
             }
         }
+    }
+
+    private static void resetWeight(int w) {
+        int aw = (int) (1.1 * w);
+        weight.value = w;
+        actualWeight.value = aw;
+    }
+
+    private static void resetExecuteTime(int et) {
+        executeTime.value = et;
     }
 
     private static class CalculateTask implements Runnable {
@@ -95,7 +104,7 @@ public class ProviderManager {
                             maxTps = t;
                         }
                         if (i == 3) {
-                            targetTime = (int) (Math.ceil(1.5 * avgTime));
+                            targetTime = (int) (Math.ceil(1.4 * avgTime));
                         }
                     }
                 }
@@ -137,14 +146,6 @@ public class ProviderManager {
             counter.clean(toKey);
         }
 
-    }
-
-    private static void resetExecuteTime(int et) {
-        executeTime.value = et;
-    }
-
-    private static void resetWeight(int w) {
-        weight.value = w;
     }
 
 
