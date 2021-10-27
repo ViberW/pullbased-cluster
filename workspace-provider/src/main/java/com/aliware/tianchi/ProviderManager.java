@@ -49,7 +49,7 @@ public class ProviderManager {
                 if (once) {
                     scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
                     scheduledExecutor.scheduleWithFixedDelay(new CalculateTask(), 1000,
-                            400, TimeUnit.MILLISECONDS);
+                            200, TimeUnit.MILLISECONDS);
                     once = false;
                 }
             }
