@@ -26,8 +26,7 @@ public class UserLoadBalance implements LoadBalance {
         int totalWeight = 0;
         int weight;
         for (int index = 0; index < size; ++index) {
-            NodeState state = NodeManager.state(invokers.get(index));
-            weight = state.getWeight();
+            weight = NodeManager.state(invokers.get(index)).getWeight();
             serviceWeight[index] = weight;
             totalWeight += weight;
         }

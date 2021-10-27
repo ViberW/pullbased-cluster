@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -28,9 +29,8 @@ public class ProviderManager {
     private static volatile boolean once = true;
 
     public static Value weight = new Value(50);
-    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(100);
+    public static final AtomicInteger active = new AtomicInteger(0);
     public static Value executeTime = new Value(10);
-    public static Value actualWeight = new Value((int) (1.1 * weight.value));
     private static final long windowSize = 5;
     static final long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 100;
     static final int levelCount = 100; //能够支持统计tps的请求数
@@ -42,7 +42,7 @@ public class ProviderManager {
         }
         return sumCounters;
     });
-    public static final AtomicLong active = new AtomicLong(0);
+    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);
 
     public static void maybeInit(Invoker<?> invoker) {
         if (once) {
@@ -58,21 +58,19 @@ public class ProviderManager {
     }
 
     private static void resetWeight(int w) {
-        int aw = (int) (1.1 * w);
         weight.value = w;
-        actualWeight.value = aw;
     }
 
     private static void resetExecuteTime(int et) {
         executeTime.value = et;
     }
 
-    public static void time(long duration, long concurrent) {
+    public static void time(long duration, int concurrent) {
         long offset = offset();
         SumCounter[] sumCounters = counters.get(offset);
-        long w = weight.value;
+        int w = weight.value;
         if (Math.abs(concurrent - w) <= 6) { //说明需要调整到对应的位置上去
-            SumCounter sumCounter = sumCounters[(int) (concurrent - w + 6) >> 1];
+            SumCounter sumCounter = sumCounters[(concurrent - w + 6) >> 1];
             sumCounter.getTotal().add(1);
             sumCounter.getDuration().add(duration);
         }

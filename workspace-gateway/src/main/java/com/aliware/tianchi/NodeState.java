@@ -46,15 +46,11 @@ public class NodeState {
     }
 
     public void setWeight(int w) {
-        if (weight.value != w) {
-            weight.value = w;
-        }
+        weight.value = w;
     }
 
     public void setExecuteTime(int executeTime) {
-        if (this.executeTime.value != executeTime) {
-            this.executeTime.value = executeTime;
-        }
+        this.executeTime.value = executeTime;
     }
 
     public int getTimeout() {
