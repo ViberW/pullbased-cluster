@@ -20,8 +20,8 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        int w = ProviderManager.weight.value;
         int concurrent = ProviderManager.active.getAndIncrement();
+        int w = ProviderManager.weight.value;
         if (concurrent > w) {
             double r = ThreadLocalRandom.current().nextDouble(1);
             if (r > 1.5 - (concurrent * 1.0 / w)) {

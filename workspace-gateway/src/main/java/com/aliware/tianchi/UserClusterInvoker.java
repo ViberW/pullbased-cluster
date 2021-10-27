@@ -38,7 +38,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         super(directory);
         checker = new HashedWheelTimer(
                 new NamedThreadFactory("user-cluster-check-timer", true),
-                15, TimeUnit.MILLISECONDS);
+                10, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -87,12 +87,34 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         checker.stop();
     }
 
+    static class WaitCompletableFuture extends CompletableFuture<AppResponse> {
+
+        public void register(AsyncRpcResult result, Timeout timeout) {
+            result.getResponseFuture().whenComplete((appResponse, throwable) -> {
+                if (WaitCompletableFuture.this.isDone()) {
+                    return;
+                }
+                if (null != appResponse) {
+                    timeout.cancel();
+                    WaitCompletableFuture.this.complete(appResponse);
+                } else if (timeout.cancel()) {
+                    try {
+                        timeout.task().run(timeout); //手动执行
+                    } catch (Throwable t) {
+                        logger.warn("An exception was thrown by " + TimerTask.class.getSimpleName() + '.', t);
+                        WaitCompletableFuture.this.completeExceptionally(t);
+                    }
+                }
+            });
+        }
+    }
+
     class FutureTimeoutTask implements TimerTask {
         Invoker<T> invoker;
         List<Invoker<T>> invokers;
         LoadBalance loadbalance;
         Invocation invocation;
-        final long time;
+        //        final long time;
         WaitCompletableFuture waitCompletableFuture;
         long start;
         RpcContextAttachment tmpContext;
@@ -105,7 +127,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             this.invokers = invokers;
             this.loadbalance = loadbalance;
             this.invocation = invocation;
-            time = invoker.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
+//            time = invoker.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
             start = System.currentTimeMillis();
             tmpContext = RpcContext.getClientAttachment();
             tmpServerContext = RpcContext.getServerContext();
@@ -116,11 +138,11 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             if (waitCompletableFuture.isDone()) {
                 return;
             }
-            if (System.currentTimeMillis() - start > time) {
+            /*if (System.currentTimeMillis() - start > time) {
                 waitCompletableFuture.completeExceptionally(new RpcException(RpcException.TIMEOUT_EXCEPTION,
                         "Invoke remote method timeout. method: " + invocation.getMethodName() + ", provider: " + getUrl()));
                 return;
-            }
+            }*/
             if (this.invokers.size() <= 1) {
                 waitCompletableFuture.completeExceptionally(new RpcException(RPCCode.FAST_FAIL,
                         "Invoke remote method fast failure. provider: " + invocation.getInvoker().getUrl()));
@@ -146,11 +168,11 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             RpcContext.restoreServerContext(tmpServerContext);
             try {
                 invoker = select(loadbalance, invocation, invokers, null);
-                while (!NodeManager.state(invoker).alive && invokers.size() > 0) { //离线?当前次过滤不处理
+                while (!NodeManager.state(invoker).alive && invokers.size() > 1) { //离线?当前次过滤不处理
                     invokers.remove(invoker);
                     invoker = select(loadbalance, invocation, invokers, null);
                 }
-                if (invokers.isEmpty()) {
+                if (invokers.size() <= 1) {
                     waitCompletableFuture.completeExceptionally(new RpcException(RPCCode.FAST_FAIL,
                             "Invoke remote method fast failure. provider: " + invocation.getInvoker().getUrl()));
                     return;
@@ -163,28 +185,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             } finally {
                 RpcContext.removeContext();
             }
-        }
-    }
-
-    static class WaitCompletableFuture extends CompletableFuture<AppResponse> {
-
-        public void register(AsyncRpcResult result, Timeout timeout) {
-            result.getResponseFuture().whenComplete((appResponse, throwable) -> {
-                if (WaitCompletableFuture.this.isDone()) {
-                    return;
-                }
-                if ((null != appResponse && !appResponse.hasException())) {
-                    timeout.cancel();
-                    WaitCompletableFuture.this.complete(appResponse);
-                } else if (timeout.cancel()) {
-                    try {
-                        timeout.task().run(timeout); //手动执行
-                    } catch (Throwable t) {
-                        logger.warn("An exception was thrown by " + TimerTask.class.getSimpleName() + '.', t);
-                        WaitCompletableFuture.this.completeExceptionally(t);
-                    }
-                }
-            });
         }
     }
 

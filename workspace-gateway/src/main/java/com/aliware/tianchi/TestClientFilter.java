@@ -32,16 +32,12 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         NodeState state = NodeManager.state(invoker);
         Object value = appResponse.getObjectAttachment("w");
-        if (null != value) {
-            state.setWeight((Integer) value);
-        }
+        state.setWeight((Integer) value);
 //        value = appResponse.getObjectAttachment("d");
 //        long duration = System.nanoTime() - (long) invocation.getObjectAttachment(RPCCode.BEGIN);
 //        state.end(null != value ? Math.max(0, duration - (long) value) : state.timeout);
         value = appResponse.getObjectAttachment("e");
-        if (null != value) {
-            state.setExecuteTime((Integer) value);
-        }
+        state.setExecuteTime((Integer) value);
         state.end(false);
         state.alive = true;
     }
