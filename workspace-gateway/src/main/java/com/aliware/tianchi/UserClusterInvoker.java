@@ -43,7 +43,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
     @Override
     protected Result doInvoke(Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
-        //
         Invoker<T> invoker = this.select(loadbalance, invocation, invokers, null);
         Result result = doInvoked(invocation, invokers, loadbalance, invoker);
         if (result instanceof AsyncRpcResult) {
@@ -124,7 +123,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             }
             if (this.invokers.size() <= 1) {
                 waitCompletableFuture.completeExceptionally(new RpcException(RPCCode.FAST_FAIL,
-                        "Invoke remote method fast failure. " + "provider: " + invocation.getInvoker().getUrl()));
+                        "Invoke remote method fast failure. provider: " + invocation.getInvoker().getUrl()));
                 return;
             }
             invokers.remove(invoker);
@@ -147,6 +146,15 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             RpcContext.restoreServerContext(tmpServerContext);
             try {
                 invoker = select(loadbalance, invocation, invokers, null);
+                while (!NodeManager.state(invoker).alive && invokers.size() > 0) { //离线?当前次过滤不处理
+                    invokers.remove(invoker);
+                    invoker = select(loadbalance, invocation, invokers, null);
+                }
+                if (invokers.isEmpty()) {
+                    waitCompletableFuture.completeExceptionally(new RpcException(RPCCode.FAST_FAIL,
+                            "Invoke remote method fast failure. provider: " + invocation.getInvoker().getUrl()));
+                    return;
+                }
                 Result r = doInvoked(invocation, invokers, loadbalance, invoker);
                 waitCompletableFuture.register((AsyncRpcResult) r, timeout.timer().newTimeout(timeout.task(),
                         NodeManager.state(invoker).getTimeout(), TimeUnit.MILLISECONDS));

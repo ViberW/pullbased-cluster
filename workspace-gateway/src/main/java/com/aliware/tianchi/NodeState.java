@@ -21,6 +21,7 @@ public class NodeState {
     private final int windowSize = 5;
     private final Value executeTime = new Value(10);
     private final Value coefficient = new Value(100);
+    public volatile boolean alive = true;
 
     public NodeState(ScheduledExecutorService scheduledExecutor) {
         scheduledExecutor.scheduleWithFixedDelay(new Runnable() {

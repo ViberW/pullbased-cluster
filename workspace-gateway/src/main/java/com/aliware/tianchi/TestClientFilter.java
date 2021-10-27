@@ -43,6 +43,7 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
             state.setExecuteTime((Integer) value);
         }
         state.end(false);
+        state.alive = true;
     }
 
     @Override
@@ -50,6 +51,10 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         if (t instanceof CompletionException) {
             t = ((CompletionException) t).getCause();
         }
-        NodeManager.state(invoker).end(t instanceof TimeoutException);
+        NodeState state = NodeManager.state(invoker);
+        state.end(t instanceof TimeoutException);
+        if (t instanceof RpcException && ((RpcException) t).isNetwork()) {
+            state.alive = false;
+        }
     }
 }

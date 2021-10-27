@@ -18,7 +18,6 @@ import java.util.concurrent.ThreadLocalRandom;
  * 选手需要基于此类实现自己的负载均衡算法
  */
 public class UserLoadBalance implements LoadBalance {
-    private final static Logger logger = LoggerFactory.getLogger(UserLoadBalance.class);
 
     @Override
     public <T> Invoker<T> select(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
@@ -27,7 +26,8 @@ public class UserLoadBalance implements LoadBalance {
         int totalWeight = 0;
         int weight;
         for (int index = 0; index < size; ++index) {
-            weight = NodeManager.state(invokers.get(index)).getWeight();
+            NodeState state = NodeManager.state(invokers.get(index));
+            weight = state.getWeight();
             serviceWeight[index] = weight;
             totalWeight += weight;
         }
