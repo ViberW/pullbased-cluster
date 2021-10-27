@@ -31,7 +31,7 @@ public class ProviderManager {
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(100);
     public static Value executeTime = new Value(10);
     public static Value actualWeight = new Value((int) (1.1 * weight.value));
-    private static final long windowSize = 10;
+    private static final long windowSize = 5;
     static final long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 100;
     static final int levelCount = 100; //能够支持统计tps的请求数
     private static final Counter<SumCounter> counter = new Counter<>(l -> new SumCounter());
@@ -71,9 +71,8 @@ public class ProviderManager {
         long offset = offset();
         SumCounter[] sumCounters = counters.get(offset);
         long w = weight.value;
-        if (Math.abs(concurrent - w) <= 3) { //说明需要调整到对应的位置上去
-//            SumCounter sumCounter = sumCounters[(int) (concurrent - w + 6) >> 1];
-            SumCounter sumCounter = sumCounters[(int) (concurrent - w + 3)];
+        if (Math.abs(concurrent - w) <= 6) { //说明需要调整到对应的位置上去
+            SumCounter sumCounter = sumCounters[(int) (concurrent - w + 6) >> 1];
             sumCounter.getTotal().add(1);
             sumCounter.getDuration().add(duration);
         }
@@ -101,8 +100,7 @@ public class ProviderManager {
             long toKey = high - (windowSize << 1);
             if (counts[3] > levelCount) {
                 int v = weight.value;
-//                int[] weights = {v - 6, v - 4, v - 2, v, v + 2, v + 4, v + 6};
-                int[] weights = {v - 3, v - 2, v - 1, v, v + 1, v + 2, v + 3};
+                int[] weights = {v - 6, v - 4, v - 2, v, v + 2, v + 4, v + 6};
                 long[] tps = new long[7];
                 int maxIndex = 0;
                 long maxTps = 0;
