@@ -34,7 +34,6 @@ public class ProviderManager {
     private static final long windowSize = 5;
     static final long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 100;
     static final int levelCount = 100; //能够支持统计tps的请求数
-    private static final Counter<SumCounter> counter = new Counter<>(l -> new SumCounter());
     private static final Counter<SumCounter[]> counters = new Counter<>(l -> {
         SumCounter[] sumCounters = new SumCounter[7];
         for (int i = 0; i < sumCounters.length; i++) {
@@ -152,7 +151,7 @@ public class ProviderManager {
                 //存放和合适的超时时间
                 resetExecuteTime((executeTime.value + targetTime) / 2);
             }
-            counter.clean(toKey);
+            counters.clean(toKey);
         }
 
     }
