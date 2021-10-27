@@ -49,7 +49,7 @@ public class ProviderManager {
                 if (once) {
                     scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
                     scheduledExecutor.scheduleWithFixedDelay(new CalculateTask(), 1000,
-                            200, TimeUnit.MILLISECONDS);
+                            400, TimeUnit.MILLISECONDS);
                     once = false;
                 }
             }
@@ -129,8 +129,7 @@ public class ProviderManager {
                         }
                     }
                     if (most * 1.0 / total >= 0.5) {
-                        resetWeight(v + 1);
-                        toKey = offset();
+                        resetWeight(v + 2);
                     }
                 } else if (maxIndex < 3) {
                     int total = 0;
@@ -145,7 +144,6 @@ public class ProviderManager {
                     }
                     if (most * 1.0 / total >= 0.5) {
                         resetWeight(v - 1);
-                        toKey = offset();
                     }
                 }
                 //存放和合适的超时时间
