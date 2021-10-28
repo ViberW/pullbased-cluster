@@ -157,7 +157,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             RpcContext.restoreServerContext(tmpServerContext);
             try {
                 invoker = select(loadbalance, invocation, invokers, null);
-                while (!NodeManager.state(invoker).alive && invokers.size() > 1) { //离线?当前次过滤不处理
+               /* while (!NodeManager.state(invoker).alive && invokers.size() > 1) { //离线?当前次过滤不处理
                     invokers.remove(invoker);
                     invoker = select(loadbalance, invocation, invokers, null);
                 }
@@ -165,7 +165,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     waitCompletableFuture.completeExceptionally(new RpcException(RPCCode.FAST_FAIL,
                             "Invoke remote method fast failure. provider: " + invocation.getInvoker().getUrl()));
                     return;
-                }
+                }*/
                 Result r = doInvoked(invocation, invokers, loadbalance, invoker);
                 waitCompletableFuture.register((AsyncRpcResult) r, timeout.timer().newTimeout(timeout.task(),
                         NodeManager.state(invoker).getWheelTime(), TimeUnit.MILLISECONDS));

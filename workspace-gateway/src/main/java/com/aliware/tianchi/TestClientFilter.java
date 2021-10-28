@@ -39,7 +39,7 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         value = appResponse.getObjectAttachment("e");
         state.setExecuteTime((Integer) value);
         state.end(false);
-        state.alive = true;
+//        state.alive = true;
     }
 
     @Override
@@ -49,8 +49,8 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         }
         NodeState state = NodeManager.state(invoker);
         state.end(t instanceof TimeoutException);
-        if (t instanceof RpcException && ((RpcException) t).isNetwork()) {
+        /*if (t instanceof RpcException && ((RpcException) t).isNetwork()) {
             state.alive = false;
-        }
+        }*/
     }
 }
