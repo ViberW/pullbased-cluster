@@ -13,7 +13,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author Viber
@@ -111,9 +110,7 @@ public class ProviderManager {
                             maxIndex = i;
                             maxTps = t;
                         }
-                        if (i == 3) {
-                            targetTime = (int) (Math.ceil(1.3 * avgTime));
-                        }
+                        targetTime = Math.max(targetTime, (int) (Math.ceil(1.5 * avgTime)));
                     }
                 }
                 long curTps = tps[3];
@@ -128,7 +125,7 @@ public class ProviderManager {
                             }
                         }
                     }
-                    if (most * 1.0 / total >= 0.5) {
+                    if (total == 3 && most >= 2) {
                         resetWeight(v + 2);
                     }
                 } else if (maxIndex < 3) {
@@ -142,12 +139,12 @@ public class ProviderManager {
                             }
                         }
                     }
-                    if (most * 1.0 / total >= 0.5) {
+                    if (total == 3 && most >= 2) {
                         resetWeight(v - 1);
                     }
                 }
                 //存放和合适的超时时间
-                resetExecuteTime((executeTime.value + targetTime) / 2);
+                resetExecuteTime(targetTime);
             }
             counters.clean(toKey);
         }

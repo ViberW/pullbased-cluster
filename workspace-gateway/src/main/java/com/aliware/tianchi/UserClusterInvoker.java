@@ -51,7 +51,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             RpcContext.getServiceContext().setFuture(new FutureAdapter<>(future));
             future.register((AsyncRpcResult) result, checker.newTimeout(
                     new FutureTimeoutTask(loadbalance, invocation, future, invoker, invokers),
-                    NodeManager.state(invoker).getTimeout(), TimeUnit.MILLISECONDS));
+                    NodeManager.state(invoker).getWheelTime(), TimeUnit.MILLISECONDS));
             return rpcResult;
             /*WaitCompletableFuture future = new WaitCompletableFuture(loadbalance, invocation, invoker, invokers);
             future.register((AsyncRpcResult) result);
@@ -168,7 +168,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 }
                 Result r = doInvoked(invocation, invokers, loadbalance, invoker);
                 waitCompletableFuture.register((AsyncRpcResult) r, timeout.timer().newTimeout(timeout.task(),
-                        NodeManager.state(invoker).getTimeout(), TimeUnit.MILLISECONDS));
+                        NodeManager.state(invoker).getWheelTime(), TimeUnit.MILLISECONDS));
             } catch (Exception e) {
                 waitCompletableFuture.completeExceptionally(e);
             } finally {

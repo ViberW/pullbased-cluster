@@ -45,7 +45,7 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
     @Override
     public void onError(Throwable t, Invoker<?> invoker, Invocation invocation) {
         if (t instanceof CompletionException) {
-            t = ((CompletionException) t).getCause();
+            t = t.getCause();
         }
         NodeState state = NodeManager.state(invoker);
         state.end(t instanceof TimeoutException);

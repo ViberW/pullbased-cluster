@@ -57,6 +57,10 @@ public class NodeState {
         return /*timeout +*/ executeTime.value;
     }
 
+    public int getWheelTime() {
+        return executeTime.value - 1; //相对减少1s呢
+    }
+
     public void end(boolean failure) {
         long offset = offset();
         StateCounter state = counter.get(offset);
