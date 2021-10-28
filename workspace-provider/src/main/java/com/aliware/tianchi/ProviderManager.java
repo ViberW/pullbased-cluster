@@ -112,7 +112,7 @@ public class ProviderManager {
                             maxTps = t;
                         }
                         if (i == 3) {
-                            targetTime = (int) (Math.ceil(1.5 * avgTime));
+                            targetTime = (int) (Math.ceil(1.3 * avgTime));
                         }
                     }
                 }
