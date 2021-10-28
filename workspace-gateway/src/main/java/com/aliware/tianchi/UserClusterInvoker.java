@@ -68,16 +68,12 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             invocation.setObjectAttachment(RPCCode.TIME_RATIO, invokers.size());
             return invoker.invoke(invocation);
         } catch (RpcException e) {
-            if (e.isNetwork()) {
-                if (invokers.size() <= 1) {
-                    throw e;
-                }
-                invokers.remove(invoker);
-                invoker = this.select(loadbalance, invocation, invokers, null);
-                return doInvoked(invocation, invokers, loadbalance, invoker);
-            } else {
+            if (invokers.size() <= 1) {
                 throw e;
             }
+            invokers.remove(invoker);
+            invoker = this.select(loadbalance, invocation, invokers, null);
+            return doInvoked(invocation, invokers, loadbalance, invoker);
         }
     }
 
@@ -114,7 +110,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         List<Invoker<T>> invokers;
         LoadBalance loadbalance;
         Invocation invocation;
-        //        final long time;
         WaitCompletableFuture waitCompletableFuture;
         long start;
         RpcContextAttachment tmpContext;
@@ -127,7 +122,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             this.invokers = invokers;
             this.loadbalance = loadbalance;
             this.invocation = invocation;
-//            time = invoker.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
             start = System.currentTimeMillis();
             tmpContext = RpcContext.getClientAttachment();
             tmpServerContext = RpcContext.getServerContext();
@@ -138,11 +132,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             if (waitCompletableFuture.isDone()) {
                 return;
             }
-            /*if (System.currentTimeMillis() - start > time) {
-                waitCompletableFuture.completeExceptionally(new RpcException(RpcException.TIMEOUT_EXCEPTION,
-                        "Invoke remote method timeout. method: " + invocation.getMethodName() + ", provider: " + getUrl()));
-                return;
-            }*/
             if (this.invokers.size() <= 1) {
                 waitCompletableFuture.completeExceptionally(new RpcException(RPCCode.FAST_FAIL,
                         "Invoke remote method fast failure. provider: " + invocation.getInvoker().getUrl()));
