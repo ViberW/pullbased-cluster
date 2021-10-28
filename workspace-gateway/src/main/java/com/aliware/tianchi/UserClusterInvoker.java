@@ -19,10 +19,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
-
-import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
-import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
 
 /**
  * 集群实现
@@ -91,8 +89,8 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     return;
                 }
                 if (null != appResponse) {
-                    timeout.cancel();
                     WaitCompletableFuture.this.complete(appResponse);
+                    timeout.cancel();
                 } else if (timeout.cancel()) {
                     try {
                         timeout.task().run(timeout); //手动执行
@@ -111,7 +109,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         LoadBalance loadbalance;
         Invocation invocation;
         WaitCompletableFuture waitCompletableFuture;
-        long start;
         RpcContextAttachment tmpContext;
         RpcContextAttachment tmpServerContext;
 
@@ -122,7 +119,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             this.invokers = invokers;
             this.loadbalance = loadbalance;
             this.invocation = invocation;
-            start = System.currentTimeMillis();
             tmpContext = RpcContext.getClientAttachment();
             tmpServerContext = RpcContext.getServerContext();
         }
@@ -142,7 +138,12 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 execute(timeout); //由原本的defaultFuture的executor去执行
             } else {
                 //时间长的任务交由executor去执行, 尽量不影响timer的滴答
-                getExecutor(invoker.getUrl()).execute(() -> execute(timeout));
+                try {
+                    getExecutor(invoker.getUrl()).execute(() -> execute(timeout));
+                }catch (RejectedExecutionException e){
+                    //AbortPolicyWithReport策略
+                    execute(timeout);
+                }
             }
         }
 
