@@ -40,7 +40,7 @@ public class ProviderManager {
         }
         return sumCounters;
     });
-    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);//200?
+    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(100);//200?
 
    /* public static void maybeInit(Invoker<?> invoker) {
         if (once) {
