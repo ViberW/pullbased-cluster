@@ -21,7 +21,7 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         int w = ProviderManager.weight.value;
-        int concurrent = ProviderManager.active.get(); //尝试这里使用get()方式.
+        int concurrent = ProviderManager.active.getAndIncrement();
         if (concurrent > w) {
             double r = ThreadLocalRandom.current().nextDouble(1);
             if (r > 1.4 - (concurrent * 1.0 / w)) {//1.3?
@@ -32,7 +32,6 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         }
         invocation.put(ACTIVE, concurrent);
         invocation.put(BEGIN, System.nanoTime());
-        ProviderManager.active.getAndIncrement();
         try {
             return invoker.invoke(invocation);
         } catch (Exception e) {

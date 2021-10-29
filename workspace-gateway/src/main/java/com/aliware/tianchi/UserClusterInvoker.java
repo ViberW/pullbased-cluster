@@ -140,7 +140,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 //时间长的任务交由executor去执行, 尽量不影响timer的滴答
                 try {
                     getExecutor(invoker.getUrl()).execute(() -> execute(timeout));
-                }catch (RejectedExecutionException e){
+                } catch (RejectedExecutionException e) {
                     //AbortPolicyWithReport策略
                     execute(timeout);
                 }
@@ -169,7 +169,9 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 }*/
                 Result r = doInvoked(invocation, invokers, loadbalance, invoker);
                 waitCompletableFuture.register((AsyncRpcResult) r, timeout.timer().newTimeout(timeout.task(),
-                        NodeManager.state(invoker).getWheelTime(), TimeUnit.MILLISECONDS));
+                        invokers.size() == 1 ? NodeManager.state(invoker).getTimeout()
+                                : NodeManager.state(invoker).getWheelTime()
+                        , TimeUnit.MILLISECONDS));
                 //size ==1时使用getTimeout()?
             } catch (Exception e) {
                 waitCompletableFuture.completeExceptionally(e);
