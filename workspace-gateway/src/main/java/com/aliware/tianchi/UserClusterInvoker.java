@@ -147,7 +147,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             }
         }
 
-        //由上一次的线程池去帮忙执行
+        //ExtensionLoader的线程-- 本质上consumer就是同一个线程池.  --换个线程池? 不影响其他的使用?
         protected ExecutorService getExecutor(URL url) {
             return ExtensionLoader.getExtensionLoader(ExecutorRepository.class)
                     .getDefaultExtension().getExecutor(url);
