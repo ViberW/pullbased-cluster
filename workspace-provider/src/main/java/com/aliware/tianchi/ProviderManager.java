@@ -30,7 +30,7 @@ public class ProviderManager {
     public static Value weight = new Value(50);
     public static final AtomicInteger active = new AtomicInteger(0);
     public static Value executeTime = new Value(10);
-    private static final long windowSize = 10;
+    private static final long windowSize = 5;
     static final long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 100;
     static final int levelCount = 100; //能够支持统计tps的请求数
     private static final Counter<SumCounter[]> counters = new Counter<>(l -> {
@@ -40,19 +40,25 @@ public class ProviderManager {
         }
         return sumCounters;
     });
-    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(100);
+    private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(200);//200?
 
-    public static void maybeInit(Invoker<?> invoker) {
+   /* public static void maybeInit(Invoker<?> invoker) {
         if (once) {
             synchronized (ProviderManager.class) {
                 if (once) {
                     scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
                     scheduledExecutor.scheduleWithFixedDelay(new CalculateTask(), 1000,
-                            200, TimeUnit.MILLISECONDS);
+                            200, TimeUnit.MILLISECONDS); //100?--数值太少, 没法合理计算感觉
                     once = false;
                 }
             }
         }
+    }*/
+
+    static {
+        scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+        scheduledExecutor.scheduleWithFixedDelay(new CalculateTask(), 1000,
+                200, TimeUnit.MILLISECONDS); //100?--数值太少, 没法合理计算感觉
     }
 
     private static void resetWeight(int w) {
