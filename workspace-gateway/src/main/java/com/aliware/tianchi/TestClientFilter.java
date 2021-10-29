@@ -21,25 +21,18 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-        NodeState state = NodeManager.state(invoker);
         RpcContext.getClientAttachment().setAttachment(CommonConstants.TIMEOUT_KEY,
-                state.getTimeout() * (int) invocation.getObjectAttachment(RPCCode.TIME_RATIO, 1));
-//        invocation.setObjectAttachment(RPCCode.BEGIN, System.currentTimeMillis());
+                NodeManager.state(invoker).getTimeout()
+                        * (int) invocation.getObjectAttachment(RPCCode.TIME_RATIO, 1));
         return invoker.invoke(invocation);
     }
 
     @Override
     public void onResponse(Result appResponse, Invoker<?> invoker, Invocation invocation) {
         NodeState state = NodeManager.state(invoker);
-        Object value = appResponse.getObjectAttachment("w");
-        state.setWeight((Integer) value);
-//        value = appResponse.getObjectAttachment("d");
-//        long duration = System.nanoTime() - (long) invocation.getObjectAttachment(RPCCode.BEGIN);
-//        state.end(null != value ? Math.max(0, duration - (long) value) : state.timeout);
-        value = appResponse.getObjectAttachment("e");
-        state.setExecuteTime((Integer) value);
+        state.setWeight((Integer) appResponse.getObjectAttachment("w"));
+        state.setExecuteTime((Integer) appResponse.getObjectAttachment("e"));
         state.end(false);
-//        state.alive = true;
     }
 
     @Override
@@ -49,8 +42,5 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         }
         NodeState state = NodeManager.state(invoker);
         state.end(t instanceof TimeoutException);
-        /*if (t instanceof RpcException && ((RpcException) t).isNetwork()) {
-            state.alive = false;
-        }*/
     }
 }

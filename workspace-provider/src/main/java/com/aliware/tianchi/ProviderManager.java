@@ -25,7 +25,6 @@ public class ProviderManager {
     private static SystemInfo si = new SystemInfo();
     private static HardwareAbstractionLayer hal = si.getHardware();
     private static ScheduledExecutorService scheduledExecutor;
-    private static volatile boolean once = true;
 
     public static Value weight = new Value(50);
     public static final AtomicInteger active = new AtomicInteger(0);
@@ -35,25 +34,12 @@ public class ProviderManager {
     static final int levelCount = 100; //能够支持统计tps的请求数
     private static final Counter<SumCounter[]> counters = new Counter<>(l -> {
         SumCounter[] sumCounters = new SumCounter[7];
-        for (int i = 0; i < sumCounters.length; i++) {
+        for (int i = 0; i < 7; i++) {
             sumCounters[i] = new SumCounter();
         }
         return sumCounters;
     });
     private static final long timeInterval = TimeUnit.MILLISECONDS.toNanos(100);//200?
-
-   /* public static void maybeInit(Invoker<?> invoker) {
-        if (once) {
-            synchronized (ProviderManager.class) {
-                if (once) {
-                    scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-                    scheduledExecutor.scheduleWithFixedDelay(new CalculateTask(), 1000,
-                            200, TimeUnit.MILLISECONDS); //100?--数值太少, 没法合理计算感觉
-                    once = false;
-                }
-            }
-        }
-    }*/
 
     static {
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
@@ -70,10 +56,10 @@ public class ProviderManager {
     }
 
     public static void time(long duration, int concurrent) {
-        long offset = offset();
-        SumCounter[] sumCounters = counters.get(offset);
         int w = weight.value;
         if (Math.abs(concurrent - w) <= 3) { //说明需要调整到对应的位置上去
+            long offset = offset();
+            SumCounter[] sumCounters = counters.get(offset);
 //            SumCounter sumCounter = sumCounters[(concurrent - w + 6) >> 1];
             SumCounter sumCounter = sumCounters[concurrent - w + 3];
             sumCounter.getTotal().add(1);
@@ -128,7 +114,7 @@ public class ProviderManager {
                     for (int i = 4; i < 7; i++) {
                         if (tps[i] > 0) {
                             total++;
-                            if (tps[i] > curTps) {
+                            if (tps[i] >= curTps) {
                                 most++;
                             }
                         }
@@ -142,7 +128,7 @@ public class ProviderManager {
                     for (int i = 0; i < 3; i++) {
                         if (tps[i] > 0) {
                             total++;
-                            if (tps[i] > curTps) {
+                            if (tps[i] >= curTps) {
                                 most++;
                             }
                         }
