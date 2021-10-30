@@ -27,7 +27,7 @@ public class ProviderManager {
     private static ScheduledExecutorService scheduledExecutor;
 
     public static Value weight = new Value(50);
-    public static final AtomicInteger active = new AtomicInteger(0);
+    public static final AtomicInteger active = new AtomicInteger(-1);//适当调大weight?
     public static Value executeTime = new Value(10);
     private static final long windowSize = 10;
     static final long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 100;
