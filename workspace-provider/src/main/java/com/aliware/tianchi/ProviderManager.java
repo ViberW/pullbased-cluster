@@ -70,7 +70,7 @@ public class ProviderManager {
     private static class CalculateTask implements Runnable {
         @Override
         public void run() {
-            long high = offset() - 1; //过去的一个100ms以前的数据统计,尽量保证数据的真实
+            long high = offset();
             long low = high - windowSize;
 
             Collection<SumCounter[]> sub = counters.sub(low, high);
