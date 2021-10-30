@@ -17,7 +17,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 集群实现
@@ -28,18 +31,12 @@ import java.util.concurrent.*;
 public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     private final static Logger logger = LoggerFactory.getLogger(UserClusterInvoker.class);
     private final Timer checker;
-    private final ExecutorService executorService;
 
     public UserClusterInvoker(Directory<T> directory) {
         super(directory);
         checker = new HashedWheelTimer(
                 new NamedThreadFactory("user-cluster-check-timer", true),
                 10, TimeUnit.MILLISECONDS);
-        int size = 64;
-        executorService = new ThreadPoolExecutor(size, size, 0, TimeUnit.MILLISECONDS,
-                new SynchronousQueue<>(), //这里使用SynchronousQueue, 用于快速执行或失败拒绝
-                new NamedThreadFactory("user-cluster-executor", true),
-                new ThreadPoolExecutor.CallerRunsPolicy());
     }
 
     @Override
@@ -82,7 +79,6 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
     public void destroy() {
         super.destroy();
         checker.stop();
-        executorService.shutdown();
     }
 
     static class WaitCompletableFuture extends CompletableFuture<AppResponse> {
@@ -142,13 +138,12 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 execute(timeout); //由原本的defaultFuture的executor去执行
             } else {
                 //时间长的任务交由executor去执行, 尽量不影响timer的滴答
-                /*try {
+                try {
                     getExecutor(invoker.getUrl()).execute(() -> execute(timeout));
                 } catch (RejectedExecutionException e) {
                     //AbortPolicyWithReport策略
                     execute(timeout);
-                }*/
-                executorService.execute(() -> execute(timeout));
+                }
             }
         }
 
