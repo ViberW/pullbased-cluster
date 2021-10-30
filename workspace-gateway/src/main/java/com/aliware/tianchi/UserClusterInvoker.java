@@ -36,7 +36,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         super(directory);
         checker = new HashedWheelTimer(
                 new NamedThreadFactory("user-cluster-check-timer", true),
-                10, TimeUnit.MILLISECONDS);//时间间隔是不是可以调整到15s  正好defaultfeture的一半
+                15, TimeUnit.MILLISECONDS);//时间间隔是不是可以调整到15s  正好defaultfeture的一半
     }
 
     @Override
