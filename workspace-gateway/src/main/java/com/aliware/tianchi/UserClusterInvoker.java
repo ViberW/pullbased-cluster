@@ -49,7 +49,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             RpcContext.getServiceContext().setFuture(new FutureAdapter<>(future));
             future.register((AsyncRpcResult) result, checker.newTimeout(
                     new FutureTimeoutTask(loadbalance, invocation, future, invoker, invokers),
-                    NodeManager.state(invoker).getWheelTime(), TimeUnit.MILLISECONDS));
+                    NodeManager.state(invoker).getWheelTime(), TimeUnit.MILLISECONDS));//这里的invoker可能不是真正的, 网络断开连接情况
             return rpcResult;
             /*WaitCompletableFuture future = new WaitCompletableFuture(loadbalance, invocation, invoker, invokers);
             future.register((AsyncRpcResult) result);
