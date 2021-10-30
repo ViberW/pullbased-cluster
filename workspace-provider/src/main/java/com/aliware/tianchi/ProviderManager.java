@@ -44,7 +44,7 @@ public class ProviderManager {
     static {
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
         scheduledExecutor.scheduleWithFixedDelay(new CalculateTask(), 1000,
-                100, TimeUnit.MILLISECONDS); //100?--数值太少, 没法合理计算感觉
+                200, TimeUnit.MILLISECONDS); //100?--数值太少, 没法合理计算感觉
     }
 
     private static void resetWeight(int w) {
@@ -70,7 +70,7 @@ public class ProviderManager {
     private static class CalculateTask implements Runnable {
         @Override
         public void run() {
-            long high = offset();
+            long high = offset() - 1; //过去的一个100ms以前的数据统计,尽量保证数据的真实
             long low = high - windowSize;
 
             Collection<SumCounter[]> sub = counters.sub(low, high);
