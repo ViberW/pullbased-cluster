@@ -27,7 +27,7 @@ public class ProviderManager {
     private static ScheduledExecutorService scheduledExecutor;
 
     public static Value weight = new Value(50);
-    public static final AtomicInteger active = new AtomicInteger(1);//变成1?
+    public static final AtomicInteger active = new AtomicInteger(0);
     public static Value executeTime = new Value(10);
     private static final long windowSize = 10;
     static final long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 100;
@@ -94,7 +94,7 @@ public class ProviderManager {
                 long[] tps = new long[7];
                 int maxIndex = 0;
                 long maxTps = 0;
-                int targetTime = executeTime.value;
+                int targetTime = 0;
                 for (int i = 0; i < 7; i++) {
                     if (counts[i] > levelCount) {
                         double avgTime = Math.max(1.0, ((int) (((durations[i] / counts[i]) / littleMillis))) / 100.0); //保证1.xx的时间
@@ -104,7 +104,7 @@ public class ProviderManager {
                             maxIndex = i;
                             maxTps = t;
                         }
-                        targetTime = Math.max(targetTime, (int) (Math.ceil(1.5 * avgTime)));
+                        targetTime = Math.max(targetTime, (int) (Math.ceil(1.75 * avgTime)));
                     }
                 }
                 long curTps = tps[3];
@@ -121,6 +121,7 @@ public class ProviderManager {
                     }
                     if (most * 1.0 / total >= 0.5) {
                         resetWeight(v + 1);
+                        toKey = high;
                     }
                 } else if (maxIndex < 3) {
                     int total = 0;
@@ -135,6 +136,7 @@ public class ProviderManager {
                     }
                     if (most * 1.0 / total >= 0.5) {
                         resetWeight(v - 1);
+                        toKey = high;
                     }
                 }
                 //存放和合适的超时时间

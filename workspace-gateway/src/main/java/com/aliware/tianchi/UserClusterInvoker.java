@@ -169,7 +169,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 }*/
                 Result r = doInvoked(invocation, invokers, loadbalance, invoker);
                 waitCompletableFuture.register((AsyncRpcResult) r, timeout.timer().newTimeout(timeout.task(),
-                        NodeManager.state(invoker).getWheelTime() + (invokers.size() == 1 ? 1 : 0)
+                        NodeManager.state(invoker).getWheelTime()
                         , TimeUnit.MILLISECONDS));
                 //size ==1时使用getTimeout()?
             } catch (Exception e) {
