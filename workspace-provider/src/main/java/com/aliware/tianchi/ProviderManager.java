@@ -104,7 +104,7 @@ public class ProviderManager {
                             maxIndex = i;
                             maxTps = t;
                         }
-                        targetTime = Math.max(targetTime, (int) (Math.ceil(1.75 * avgTime)));
+                        targetTime = Math.max(targetTime, (int) (/*Math.ceil(1.75 * avgTime)*/1.75 * avgTime));
                     }
                 }
                 long curTps = tps[3];
