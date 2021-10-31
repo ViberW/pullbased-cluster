@@ -94,7 +94,7 @@ public class ProviderManager {
                 long[] tps = new long[7];
                 int maxIndex = 0;
                 long maxTps = 0;
-                int targetTime = 0;
+                int targetTime = executeTime.value;
                 for (int i = 0; i < 7; i++) {
                     if (counts[i] > levelCount) {
                         double avgTime = Math.max(1.0, ((int) (((durations[i] / counts[i]) / littleMillis))) / 100.0); //保证1.xx的时间
