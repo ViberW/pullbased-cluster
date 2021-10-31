@@ -40,7 +40,6 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         if (t instanceof CompletionException) {
             t = t.getCause();
         }
-        NodeState state = NodeManager.state(invoker);
-        state.end(t instanceof TimeoutException);
+        NodeManager.state(invoker).end(t instanceof TimeoutException);
     }
 }

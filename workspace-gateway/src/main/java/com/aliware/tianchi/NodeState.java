@@ -57,8 +57,7 @@ public class NodeState {
     }
 
     public int getWheelTime() {
-//        return executeTime.value - 1; //相对减少1s呢
-        return (int) (executeTime.value * 0.88); //原始值的1.3倍
+        return executeTime.value - 2; //相对减少1s呢  --直接减去2s
     }
 
     public void end(boolean failure) {
