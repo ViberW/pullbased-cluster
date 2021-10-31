@@ -119,7 +119,7 @@ public class ProviderManager {
                             }
                         }
                     }
-                    if (total == 3 && most >= 2) {
+                    if (most * 1.0 / total >= 0.5) {
                         resetWeight(v + 1);
                     }
                 } else if (maxIndex < 3) {
@@ -133,7 +133,7 @@ public class ProviderManager {
                             }
                         }
                     }
-                    if (total == 3 && most >= 2) {
+                    if (most * 1.0 / total >= 0.5) {
                         resetWeight(v - 1);
                     }
                 }
