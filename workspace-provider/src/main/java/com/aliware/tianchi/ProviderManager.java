@@ -48,7 +48,7 @@ public class ProviderManager {
     }
 
     private static void resetWeight(int w) {
-        weight.value = w;//这个值往前偏移3个单位?
+        weight.value = w;
     }
 
     private static void resetExecuteTime(int et) {
@@ -104,7 +104,7 @@ public class ProviderManager {
                             maxIndex = i;
                             maxTps = t;
                         }
-                        targetTime = Math.max(targetTime, (int) (/*Math.ceil(1.75 * avgTime)*/1.75 * avgTime));
+                        targetTime = Math.max(targetTime, (int) (Math.ceil(1.75 * avgTime)));
                     }
                 }
                 long curTps = tps[3];
