@@ -57,11 +57,13 @@ public class ProviderManager {
 
     public static void time(long duration, int concurrent) {
         int w = weight.value;
-        if (Math.abs(concurrent - w) <= 3) { //说明需要调整到对应的位置上去
+//        if (Math.abs(concurrent - w) <= 3) { //说明需要调整到对应的位置上去
+        int delta = w - concurrent;
+        if (delta >= 0 && delta < 6) {
             long offset = offset();
             SumCounter[] sumCounters = counters.get(offset);
-//            SumCounter sumCounter = sumCounters[(concurrent - w + 6) >> 1];
-            SumCounter sumCounter = sumCounters[concurrent - w + 3];
+//            SumCounter sumCounter = sumCounters[concurrent - w + 3];
+            SumCounter sumCounter = sumCounters[6 - delta];
             sumCounter.getTotal().add(1);
             sumCounter.getDuration().add(duration);
         }
@@ -90,7 +92,8 @@ public class ProviderManager {
             if (counts[3] > levelCount) {
                 int v = weight.value;
 //                int[] weights = {v - 6, v - 4, v - 2, v, v + 2, v + 4, v + 6};
-                int[] weights = {v - 3, v - 2, v - 1, v, v + 1, v + 2, v + 3};
+//                int[] weights = {v - 3, v - 2, v - 1, v, v + 1, v + 2, v + 3};
+                int[] weights = {v - 6, v - 5, v - 4, v - 3, v - 2, v - 1, v};
                 long[] tps = new long[7];
                 int maxIndex = 0;
                 long maxTps = 0;

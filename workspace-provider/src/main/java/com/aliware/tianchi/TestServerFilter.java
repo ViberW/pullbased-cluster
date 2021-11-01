@@ -23,12 +23,12 @@ public class TestServerFilter implements Filter, BaseFilter.Listener {
         int w = ProviderManager.weight.value;
         int concurrent = ProviderManager.active.getAndIncrement();
         if (concurrent > w) {
-            double r = ThreadLocalRandom.current().nextDouble(1);
-            if (r > 1.25 - (concurrent * 1.0 / w)) {
+            /*double r = ThreadLocalRandom.current().nextDouble(1);
+            if (r > 1.25 - (concurrent * 1.0 / w)) {*/
                 throw new RpcException(RPCCode.FAST_FAIL,
                         "fast failure by provider to invoke method "
                                 + invocation.getMethodName() + " in provider " + invoker.getUrl());
-            }
+            /*}*/
         }
         invocation.put(ACTIVE, concurrent);
         invocation.put(BEGIN, System.nanoTime());
