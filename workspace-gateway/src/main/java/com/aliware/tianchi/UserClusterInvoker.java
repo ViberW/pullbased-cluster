@@ -36,7 +36,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
         super(directory);
         checker = new HashedWheelTimer(
                 new NamedThreadFactory("user-cluster-check-timer", true),
-                10, TimeUnit.MILLISECONDS);//时间间隔是不是可以调整到15s  正好defaultfeture的一半
+                10, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -49,7 +49,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             RpcContext.getServiceContext().setFuture(new FutureAdapter<>(future));
             future.register((AsyncRpcResult) result, checker.newTimeout(
                     new FutureTimeoutTask(loadbalance, invocation, future, invoker, invokers),
-                    NodeManager.state(invoker).getWheelTime(), TimeUnit.MILLISECONDS));//这里的invoker可能不是真正的, 网络断开连接情况
+                    NodeManager.state(invoker).getTimeout(), TimeUnit.MILLISECONDS));
             return rpcResult;
             /*WaitCompletableFuture future = new WaitCompletableFuture(loadbalance, invocation, invoker, invokers);
             future.register((AsyncRpcResult) result);
@@ -147,7 +147,7 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             }
         }
 
-        //ExtensionLoader的线程-- 本质上consumer就是同一个线程池.  --换个线程池? 不影响其他的使用?
+        //ExtensionLoader的线程-- 本质上consumer就是同一个线程池.
         protected ExecutorService getExecutor(URL url) {
             return ExtensionLoader.getExtensionLoader(ExecutorRepository.class)
                     .getDefaultExtension().getExecutor(url);
@@ -158,20 +158,10 @@ public class UserClusterInvoker<T> extends AbstractClusterInvoker<T> {
             RpcContext.restoreServerContext(tmpServerContext);
             try {
                 invoker = select(loadbalance, invocation, invokers, null);
-               /* while (!NodeManager.state(invoker).alive && invokers.size() > 1) { //离线?当前次过滤不处理
-                    invokers.remove(invoker);
-                    invoker = select(loadbalance, invocation, invokers, null);
-                }
-                if (invokers.size() <= 1) {
-                    waitCompletableFuture.completeExceptionally(new RpcException(RPCCode.FAST_FAIL,
-                            "Invoke remote method fast failure. provider: " + invocation.getInvoker().getUrl()));
-                    return;
-                }*/
                 Result r = doInvoked(invocation, invokers, loadbalance, invoker);
                 waitCompletableFuture.register((AsyncRpcResult) r, timeout.timer().newTimeout(timeout.task(),
-                        NodeManager.state(invoker).getWheelTime()
+                        NodeManager.state(invoker).getTimeout()
                         , TimeUnit.MILLISECONDS));
-                //size ==1时使用getTimeout()?
             } catch (Exception e) {
                 waitCompletableFuture.completeExceptionally(e);
             } finally {

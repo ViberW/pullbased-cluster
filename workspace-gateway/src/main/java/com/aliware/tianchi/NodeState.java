@@ -53,11 +53,7 @@ public class NodeState {
     }
 
     public int getTimeout() {
-        return /*timeout +*/ executeTime.value;
-    }
-
-    public int getWheelTime() {
-        return executeTime.value ;
+        return executeTime.value;
     }
 
     public void end(boolean failure) {

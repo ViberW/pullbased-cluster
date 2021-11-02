@@ -40,6 +40,6 @@ public class TestClientFilter implements Filter, BaseFilter.Listener {
         if (t instanceof CompletionException) {
             t = t.getCause();
         }
-        NodeManager.state(invoker).end(t instanceof TimeoutException);
+        NodeManager.state(invoker).end(t instanceof TimeoutException);//记录超时异常, 大部分为网络抖动引起的
     }
 }
