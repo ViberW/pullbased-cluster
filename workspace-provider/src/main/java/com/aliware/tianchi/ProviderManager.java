@@ -59,7 +59,7 @@ public class ProviderManager {
         int w = weight.value;
 //        if (Math.abs(concurrent - w) <= 3) { //说明需要调整到对应的位置上去
         int delta = w - concurrent;
-        if (delta >= 0 && delta < 6) {
+        if (delta >= 0 && delta <= 6) {
             long offset = offset();
             SumCounter[] sumCounters = counters.get(offset);
 //            SumCounter sumCounter = sumCounters[concurrent - w + 3];
@@ -107,7 +107,7 @@ public class ProviderManager {
                             maxIndex = i;
                             maxTps = t;
                         }
-                        targetTime = Math.max(targetTime, (int) (Math.ceil(1.75 * avgTime)));
+                        targetTime = Math.max(targetTime, (int) (Math.ceil(1.5 * avgTime)));
                     }
                 }
                 long curTps = tps[3];
