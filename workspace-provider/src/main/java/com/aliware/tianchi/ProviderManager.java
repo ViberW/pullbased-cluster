@@ -99,6 +99,7 @@ public class ProviderManager {
                 long[] tps = new long[counterLength];
                 long maxTps = 0;
                 int targetTime = 0;
+                int maxIndex = 0;
                 for (int i = 0; i < counterLength; i++) {
                     if (counts[i] > levelCount) {
                         //简单实现, 保证1.xx的时间
@@ -107,17 +108,22 @@ public class ProviderManager {
                         tps[i] = t;
                         if (maxTps < t) {
                             maxTps = t;
+                            maxIndex = i;
                         }
                         targetTime = Math.max(targetTime, (int) (Math.ceil(1.75 * avgTime)));
                     }
                 }
                 long curTps = tps[middle];
-                if (halfGreaterThan(tps, middle + 1, counterLength, curTps)) {
-                    resetWeight(v + 1);
-                    toKey = high;
-                } else if (halfGreaterThan(tps, 0, middle, curTps)) {
-                    resetWeight(v - 1);
-                    toKey = high;
+                if (maxIndex > middle) {
+                    if (halfGreaterThan(tps, middle + 1, counterLength, curTps)) {
+                        resetWeight(v + 1);
+                        toKey = high;
+                    }
+                } else if (maxIndex < middle) {
+                    if (halfGreaterThan(tps, 0, middle, curTps)) {
+                        resetWeight(v - 1);
+                        toKey = high;
+                    }
                 }
                 //存放合适的超时时间
                 resetExecuteTime(targetTime);
