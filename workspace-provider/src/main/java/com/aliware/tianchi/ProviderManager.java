@@ -33,6 +33,7 @@ public class ProviderManager {
     static final long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 100;
     static final int levelCount = 100; //能够支持统计tps的请求数
     static final int counterLength = 7;//奇数,应该可以使用url的参数形式传递
+    static final int counterDelta = counterLength - 1;
     private static final Counter<SumCounter[]> counters = new Counter<>(l -> { //统计middle周围的tps数据
         SumCounter[] sumCounters = new SumCounter[counterLength];
         for (int i = 0; i < counterLength; i++) {
@@ -57,12 +58,11 @@ public class ProviderManager {
     }
 
     public static void time(long duration, int concurrent) {
-        int w = weight.value;
-        int delta = w - concurrent;
-        if (delta >= 0 && delta < counterLength) {
+        int delta = weight.value - concurrent;
+        if (delta >= 0 && delta <= counterDelta) {
             long offset = offset();
             SumCounter[] sumCounters = counters.get(offset);
-            SumCounter sumCounter = sumCounters[counterLength - 1 - delta];
+            SumCounter sumCounter = sumCounters[counterDelta - delta];
             sumCounter.getTotal().add(1);
             sumCounter.getDuration().add(duration);
         }
@@ -110,7 +110,7 @@ public class ProviderManager {
                             maxTps = t;
                             maxIndex = i;
                         }
-                        targetTime = Math.max(targetTime, (int) (Math.ceil(1.75 * avgTime)));
+                        targetTime = Math.max(targetTime, (int) (Math.ceil(1.7 * avgTime)));
                     }
                 }
                 long curTps = tps[middle];
