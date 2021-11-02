@@ -32,9 +32,10 @@ public class ProviderManager {
     private static final long windowSize = 10;
     static final long littleMillis = TimeUnit.MILLISECONDS.toNanos(1) / 100;
     static final int levelCount = 100; //能够支持统计tps的请求数
-    private static final Counter<SumCounter[]> counters = new Counter<>(l -> { //统计index=3周围的tps数据
-        SumCounter[] sumCounters = new SumCounter[7];
-        for (int i = 0; i < 7; i++) {
+    static final int counterLength = 7;//奇数,应该可以使用url的参数形式传递
+    private static final Counter<SumCounter[]> counters = new Counter<>(l -> { //统计middle周围的tps数据
+        SumCounter[] sumCounters = new SumCounter[counterLength];
+        for (int i = 0; i < counterLength; i++) {
             sumCounters[i] = new SumCounter();
         }
         return sumCounters;
@@ -58,10 +59,10 @@ public class ProviderManager {
     public static void time(long duration, int concurrent) {
         int w = weight.value;
         int delta = w - concurrent;
-        if (delta >= 0 && delta <= 6) {
+        if (delta >= 0 && delta < counterLength) {
             long offset = offset();
             SumCounter[] sumCounters = counters.get(offset);
-            SumCounter sumCounter = sumCounters[6 - delta];
+            SumCounter sumCounter = sumCounters[counterLength - 1 - delta];
             sumCounter.getTotal().add(1);
             sumCounter.getDuration().add(duration);
         }
@@ -74,12 +75,12 @@ public class ProviderManager {
             long low = high - windowSize;
 
             Collection<SumCounter[]> sub = counters.sub(low, high);
-            int[] counts = {0, 0, 0, 0, 0, 0, 0};
-            long[] durations = {0, 0, 0, 0, 0, 0, 0};
+            int[] counts = new int[counterLength];
+            long[] durations = new long[counterLength];
             if (!sub.isEmpty()) {
                 sub.forEach(state -> {
                     SumCounter counter;
-                    for (int i = 0; i < 7; i++) {
+                    for (int i = 0; i < counterLength; i++) {
                         counter = state[i];
                         counts[i] += counter.getTotal().sum();
                         durations[i] += counter.getDuration().sum();
@@ -87,38 +88,36 @@ public class ProviderManager {
                 });
             }
             long toKey = high - (windowSize << 1);
-            if (counts[3] > levelCount) {
+            int middle = counterLength / 2;
+            if (counts[middle] > levelCount) {
                 int v = weight.value;
-//                int[] weights = {v - 3, v - 2, v - 1, v, v + 1, v + 2, v + 3};
-                int[] weights = {v - 6, v - 5, v - 4, v - 3, v - 2, v - 1, v}; //限流的weight整体增大3
-                long[] tps = new long[7];
-                int maxIndex = 0;
+                int[] weights = new int[counterLength];
+//              int[] weights = {v - 6, v - 5, v - 4, v - 3, v - 2, v - 1, v};
+                for (int i = 0, j = counterLength - 1; i < counterLength; i++, j--) {
+                    weights[i] = v - j;
+                }
+                long[] tps = new long[counterLength];
                 long maxTps = 0;
                 int targetTime = 0;
-                for (int i = 0; i < 7; i++) {
+                for (int i = 0; i < counterLength; i++) {
                     if (counts[i] > levelCount) {
                         //简单实现, 保证1.xx的时间
                         double avgTime = Math.max(1.0, ((int) (((durations[i] / counts[i]) / littleMillis))) / 100.0);
                         long t = (long) ((1000.0 / avgTime) * weights[i]);//1s时间的tps
                         tps[i] = t;
                         if (maxTps < t) {
-                            maxIndex = i;
                             maxTps = t;
                         }
-                        targetTime = Math.max(targetTime, (int) (Math.ceil(1.6 * avgTime)));
+                        targetTime = Math.max(targetTime, (int) (Math.ceil(1.75 * avgTime)));
                     }
                 }
-                long curTps = tps[3];
-                if (maxIndex > 3) {
-                    if (halfGreaterThan(tps, 4, 7, curTps)) {
-                        resetWeight(v + 1);
-                        toKey = high;
-                    }
-                } else if (maxIndex < 3) {
-                    if (halfGreaterThan(tps, 0, 3, curTps)) {
-                        resetWeight(v - 1);
-                        toKey = high;
-                    }
+                long curTps = tps[middle];
+                if (halfGreaterThan(tps, middle + 1, counterLength, curTps)) {
+                    resetWeight(v + 1);
+                    toKey = high;
+                } else if (halfGreaterThan(tps, 0, middle, curTps)) {
+                    resetWeight(v - 1);
+                    toKey = high;
                 }
                 //存放合适的超时时间
                 resetExecuteTime(targetTime);
