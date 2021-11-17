@@ -22,9 +22,9 @@ public class UserLoadBalance implements LoadBalance {
     @Override
     public <T> Invoker<T> select(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
         int size = invokers.size();
-        int[] serviceWeight = new int[size];
+        long[] serviceWeight = new long[size];
         int totalWeight = 0;
-        int weight;
+        long weight;
         for (int index = 0; index < size; ++index) {
             weight = NodeManager.state(invokers.get(index)).getWeight();
             serviceWeight[index] = weight;

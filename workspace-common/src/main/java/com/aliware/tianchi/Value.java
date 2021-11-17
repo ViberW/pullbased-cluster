@@ -7,12 +7,11 @@ package com.aliware.tianchi;
  * @since 2021/10/22 14:09
  */
 public class Value extends PrePadding {
-    public volatile int value;
-    public int pm;
+    public volatile long value;
 
     protected long p9, p10, p11, p12, p13, p14, p15;
 
-    public Value(int value) {
+    public Value(long value) {
         this.value = value;
     }
 }

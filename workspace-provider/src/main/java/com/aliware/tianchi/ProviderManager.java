@@ -49,7 +49,7 @@ public class ProviderManager {
                 200, TimeUnit.MILLISECONDS);
     }
 
-    private static void resetWeight(int w) {
+    private static void resetWeight(long w) {
         weight.value = w;
     }
 
@@ -58,7 +58,7 @@ public class ProviderManager {
     }
 
     public static void time(long duration, int concurrent) {
-        int delta = weight.value - concurrent;
+        int delta = (int) (weight.value - concurrent);
         if (delta >= 0 && delta <= counterDelta) {
             long offset = offset();
             SumCounter[] sumCounters = counters.get(offset);
@@ -90,8 +90,8 @@ public class ProviderManager {
             long toKey = high - (windowSize << 1);
             int middle = counterLength / 2;
             if (counts[middle] > levelCount) {
-                int v = weight.value;
-                int[] weights = new int[counterLength];
+                long v = weight.value;
+                long[] weights = new long[counterLength];
 //              int[] weights = {v - 6, v - 5, v - 4, v - 3, v - 2, v - 1, v};
                 for (int i = 0, j = counterLength - 1; i < counterLength; i++, j--) {
                     weights[i] = v - j;

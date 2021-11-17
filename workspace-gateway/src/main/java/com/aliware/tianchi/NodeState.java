@@ -32,7 +32,7 @@ public class NodeState {
                 if (ret[0] > 100) {//超过100的处理
                     double ratio = (1 - (ret[1] * 1.0 / ret[0]));
                     int coef = (int) (ratio * 100);//乘以100,避免因降低导致出随机概率密集
-                    coef = (coef + coefficient.value) / 2;
+                    coef = (int) ((coef + coefficient.value) / 2);
                     coefficient.value = coef;
                 }
                 clean(high);
@@ -40,7 +40,7 @@ public class NodeState {
         }, 10, 1, TimeUnit.SECONDS);
     }
 
-    public int getWeight() {
+    public long getWeight() {
         return weight.value * coefficient.value;
     }
 
@@ -52,7 +52,7 @@ public class NodeState {
         this.executeTime.value = executeTime;
     }
 
-    public int getTimeout() {
+    public long getTimeout() {
         return executeTime.value;
     }
 
